@@ -14,13 +14,14 @@ import torch.optim as optim
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score, mean_absolute_error
 
 
-def train_one_epoch(model, dataloader, loss_fn, optimizer, epoch):
+def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch):
     model.train()
     total_loss = 0
     for inputs, targets in dataloader:
         optimizer.zero_grad()
         outputs = model(inputs.float())
-        loss = loss_fn(outputs.squeeze(), targets.long())
+        targets = targets.long() if task_type == 'classification' else targets.float()
+        loss = loss_fn(outputs.squeeze(), targets)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -33,36 +34,46 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, epoch):
 def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
     model.eval()
     total_loss = 0
-    all_probs = [] 
+    all_outputs = []  # For regression, store raw outputs
+    all_probs = []    # For classification, store probabilities
     all_targets = []
+
     with torch.no_grad():
         for inputs, targets in dataloader:
             outputs = model(inputs.float())
-            loss = loss_fn(outputs, targets.long())
+            loss = loss_fn(outputs, targets.long() if task_type == 'classification' else targets.float())
             total_loss += loss.item()
 
-            probs = torch.softmax(outputs, dim=1)[:, 1]
-            all_probs.extend(probs.tolist())
+            if task_type == 'classification':
+                probs = torch.softmax(outputs, dim=1)[:, 1]
+                all_probs.extend(probs.tolist())
+            else:
+                all_outputs.extend(outputs.squeeze().tolist())
+
             all_targets.extend(targets.tolist())
 
     loss = total_loss / len(dataloader)
+    metrics = {f'{evaluation_type}_loss': loss}
+
     if task_type == 'classification':
         auroc = roc_auc_score(all_targets, all_probs)
         avpr = average_precision_score(all_targets, all_probs)
+        metrics.update({
+            f'{evaluation_type}_auroc': auroc,
+            f'{evaluation_type}_avpr': avpr,
+        })
     else:
-        r2 = r2_score(all_targets, all_probs)
-        mae = mean_absolute_error(all_targets, all_probs)
+        r2 = r2_score(all_targets, all_outputs)
+        mae = mean_absolute_error(all_targets, all_outputs)
+        metrics.update({
+            f'{evaluation_type}_r2': r2,
+            f'{evaluation_type}_mae': mae,
+        })
 
-    metrics = {
-        f'{evaluation_type}_loss': loss,
-        f'{evaluation_type}_auroc': auroc if task_type == 'classification' else None,
-        f'{evaluation_type}_avpr': avpr if task_type == 'classification' else None,
-        f'{evaluation_type}_r2': r2 if task_type != 'classification' else None,
-        f'{evaluation_type}_mae': mae if task_type != 'classification' else None,
-    }
     wandb.log({**metrics, 'epoch': epoch})
     print(json.dumps(metrics, indent=5))
     print()
+
 
 class Model(nn.Module):
     def __init__(self, input_dim, depth=3, hidden_dim=512, activation_fn='relu', combine_input='concat', num_classes=None, dropout_rate=0.1, **kwargs):
@@ -222,7 +233,7 @@ def main():
     # Training and validation loop
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
-        model = train_one_epoch(model, train_dl, loss_fn, optimizer, epoch)
+        model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch)
         evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch)
 
     # Test trained model
