@@ -19,7 +19,7 @@ if __name__ == "__main__":
     os.environ['SWEEP_MODEL_SIZE'] = '10M'
 
     PROJECT_NAME = 'scaling_mol_gnns'
-    YAML_FILE_PATH = 'finetune_on_fingerprints.yaml'
+    YAML_FILE_PATH = 'finetune_on_fingerprints_config.yaml'
 
     sweep_id = create_sweep_and_get_id(PROJECT_NAME, YAML_FILE_PATH)
 

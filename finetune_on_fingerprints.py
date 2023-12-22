@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torchsummary import summary
 from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score, mean_absolute_error
 
@@ -92,13 +93,14 @@ class Model(nn.Module):
         self.combine_input = combine_input
         self.dropout = nn.Dropout(dropout_rate)
         self.layers = nn.ModuleList()
+        self.batch_norms = nn.ModuleList()  # Batch normalization layers
 
         # Determine activation function
         if activation_fn == 'relu':
             self.activation_fn = F.relu
         # Add other activation functions if necessary
 
-        # Create layers
+        # Create layers and batch normalization layers
         for i in range(depth):
             if self.combine_input == 'concat' and i == depth - 2:
                 in_dim = input_dim
@@ -111,17 +113,23 @@ class Model(nn.Module):
                 out_dim = hidden_dim if i < depth - 1 else (num_classes if num_classes is not None else 1)
 
             self.layers.append(nn.Linear(in_dim, out_dim))
+            if i < depth - 1:  # No batch norm on the output layer
+                self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
     def forward(self, x):
         original_x = x
         for i, layer in enumerate(self.layers):
             x = layer(x)
             if i < self.depth - 1:
+                x = self.batch_norms[i](x)
                 x = self.activation_fn(x)
                 x = self.dropout(x)
 
             if self.combine_input == 'concat' and i == self.depth - 2:
                 x = torch.cat((x, original_x), dim=1)
+
+        if x.shape[1] == 1:  # If final output dimension is 1, squeeze it for regression
+            x = x.squeeze(1)
 
         return x
 
@@ -153,13 +161,6 @@ def determine_task_type(samples_df):
     else:
         return 'regression', None
 
-def model_summary(model):
-    print("Model Summary:")
-    print(model)
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Trainable Parameters: {trainable_params / 1e6:.2f} M")
-    return trainable_params
-
 def dataloader_factory(benchmark, i2v, args):
     match_and_replace_input_column_partial = partial(match_and_replace_input_column, i2v=i2v)
     
@@ -177,9 +178,9 @@ def dataloader_factory(benchmark, i2v, args):
     test_dataset = SingleInstancePredictionDataset(test_samples, args.task_type)
 
     # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
     input_dim = train_samples['Drug'].iloc[0].shape[0]
 
@@ -189,6 +190,7 @@ def model_factory(args):
     model = Model(**vars(args))
     loss_fn = nn.CrossEntropyLoss() if args.task_type == 'classification' else nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    summary(model, input_size=(args.input_dim,), batch_size=args.batch_size)
     return model, loss_fn, optimizer
 
 def adjust_learning_rate(optimizer, epoch, args):
@@ -212,12 +214,13 @@ def adjust_learning_rate(optimizer, epoch, args):
 
 
 def main():
-    # Parse command line arguments
     parser = argparse.ArgumentParser()
+    parser.add_argument('--name', type=str, default=None, help='Name of the wandb run')
     parser.add_argument('--fingerprints-path', type=str, default='ids_to_fingerprint.pt', help='Path to ids_to_fingerprint.pt')
-    parser.add_argument('--bench', type=str, default='Caco2_Wang', help='Name of the benchmark from admet_group')
+    parser.add_argument('--dataset', type=str, default='Caco2_Wang', help='Name of the benchmark from admet_group')
     parser.add_argument('--epochs', type=int, default=5, help='Number of training epochs')
     parser.add_argument('--split', type=float, default=0.1, help='Ratio of validation set split')
+    parser.add_argument('--batch-size', type=int, default=32, help='Batch size for training and evaluation')
     # Learning rate
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for training')
     parser.add_argument('--warmup-epochs', type=int, default=2, help='Number of warmup epochs')
@@ -230,13 +233,14 @@ def main():
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='Dropout rate')
 
     args = parser.parse_args()
+    print(json.dumps(vars(args), indent=5))
 
     # Load the id to fingerprint mapping
     i2v = torch.load(args.fingerprints_path)
 
     # Get the TDC data
     group = admet_group(path='data/')
-    benchmark = group.get(args.bench)
+    benchmark = group.get(args.dataset)
 
     # Determine task type and number of classes
     args.task_type, args.num_classes = determine_task_type(benchmark['train_val'])
@@ -246,10 +250,10 @@ def main():
 
     # Define a model
     model, loss_fn, optimizer = model_factory(args)
-    args.trainable_params = model_summary(model)
 
     # Initialize wandb
-    wandb.init(project='scaling_mol_gnns', entity='graphcore', name='10M-ipu_fingerprints_bbb-martins')
+    run_name = args.name if args.name is not None else f'{args.dataset}'
+    wandb.init(project='scaling_mol_gnns', entity='graphcore', name=run_name)
     wandb.config.update(args)
 
     # Test random model
