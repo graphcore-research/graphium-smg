@@ -1,16 +1,18 @@
+import math
 import wandb
 import argparse
-import torch
 import json
-from torch.utils.data import DataLoader, Dataset
-from tdc.benchmark_group import admet_group
 from functools import partial
-import datamol as dm
 import numpy as np
+
+import datamol as dm
+from tdc.benchmark_group import admet_group
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score, mean_absolute_error
 
 
@@ -136,7 +138,7 @@ class SingleInstancePredictionDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = torch.tensor(self.samples[idx])
-        target = torch.tensor(self.targets[idx], dtype=torch.long)
+        target = torch.tensor(self.targets[idx])
         return sample, target
 
 def match_and_replace_input_column(samples_df, i2v):
@@ -183,6 +185,31 @@ def dataloader_factory(benchmark, i2v, args):
 
     return train_loader, val_loader, test_loader, input_dim
 
+def model_factory(args):
+    model = Model(**vars(args))
+    loss_fn = nn.CrossEntropyLoss() if args.task_type == 'classification' else nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    return model, loss_fn, optimizer
+
+def adjust_learning_rate(optimizer, epoch, args):
+    if epoch < args.warmup_epochs:
+        # Linear warmup
+        lr = args.lr * (epoch + 1) / args.warmup_epochs
+    elif args.lr_schedule == 'constant':
+        lr = args.lr
+    elif args.lr_schedule == 'linear':
+        # Linear decay
+        lr = args.lr * (1 - (epoch - args.warmup_epochs) / (args.epochs - args.warmup_epochs))
+    elif args.lr_schedule == 'cosine':
+        # Cosine decay
+        lr = args.lr * (1 + math.cos(math.pi * (epoch - args.warmup_epochs) / (args.epochs - args.warmup_epochs))) / 2
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+    current_lr = optimizer.param_groups[0]['lr']
+    wandb.log({'epoch': epoch, 'lr': current_lr})
+
 
 def main():
     # Parse command line arguments
@@ -190,13 +217,16 @@ def main():
     parser.add_argument('--fingerprints-path', type=str, default='ids_to_fingerprint.pt', help='Path to ids_to_fingerprint.pt')
     parser.add_argument('--bench', type=str, default='Caco2_Wang', help='Name of the benchmark from admet_group')
     parser.add_argument('--epochs', type=int, default=5, help='Number of training epochs')
-    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for training')
     parser.add_argument('--split', type=float, default=0.1, help='Ratio of validation set split')
-    parser.add_argument('--depth', type=int, default=3, help='Depth of the model')
+    # Learning rate
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for training')
+    parser.add_argument('--warmup-epochs', type=int, default=2, help='Number of warmup epochs')
+    parser.add_argument('--lr-schedule', type=str, default='constant', choices=['constant', 'linear', 'cosine'], help='Learning rate scheduling strategy')
     # Model arch
+    parser.add_argument('--depth', type=int, default=3, help='Depth of the model. Minimum 2. If 2, hidden_dim must equal the input dim.')
     parser.add_argument('--hidden-dim', type=int, default=512, help='Dimension of hidden layers')
     parser.add_argument('--activation-fn', type=str, default='relu', choices=['relu'], help='Activation function')
-    parser.add_argument('--combine-input', type=str, default='concat', choices=['concat', 'other_option'], help='Method to combine input')
+    parser.add_argument('--combine-input', type=str, default='concat', choices=['concat', 'none'], help='Method to combine input')
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='Dropout rate')
 
     args = parser.parse_args()
@@ -208,23 +238,19 @@ def main():
     group = admet_group(path='data/')
     benchmark = group.get(args.bench)
 
-    # Determine task type and number of classes if classification
+    # Determine task type and number of classes
     args.task_type, args.num_classes = determine_task_type(benchmark['train_val'])
 
     # Construct dataloaders
     train_dl, val_dl, test_dl, args.input_dim = dataloader_factory(benchmark, i2v, args)    
 
     # Define a model
-    model = Model(**vars(args))
+    model, loss_fn, optimizer = model_factory(args)
     args.trainable_params = model_summary(model)
 
     # Initialize wandb
     wandb.init(project='scaling_mol_gnns', entity='graphcore', name='10M-ipu_fingerprints_bbb-martins')
     wandb.config.update(args)
-
-    # Define loss function and optimizer
-    loss_fn = nn.CrossEntropyLoss() if args.task_type == 'classification' else nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # Test random model
     epoch = 0
@@ -233,6 +259,7 @@ def main():
     # Training and validation loop
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
+        adjust_learning_rate(optimizer, epoch, args)
         model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch)
         evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch)
 
