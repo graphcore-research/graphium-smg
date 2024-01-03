@@ -15,6 +15,7 @@ import torch.optim as optim
 from torchsummary import summary
 from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score, mean_absolute_error
+from scipy.stats import spearmanr
 
 
 def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch):
@@ -68,9 +69,11 @@ def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
     else:
         r2 = r2_score(all_targets, all_outputs)
         mae = mean_absolute_error(all_targets, all_outputs)
+        spearman_corr, _ = spearmanr(all_targets, all_outputs)
         metrics.update({
             f'{evaluation_type}_r2': r2,
             f'{evaluation_type}_mae': mae,
+            f'{evaluation_type}_spearman': spearman_corr,   
         })
 
     wandb.log({**metrics, 'epoch': epoch})
