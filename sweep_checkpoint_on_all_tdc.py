@@ -4,11 +4,11 @@ import yaml
 import time
 
 # Editables
-WANDB_ENTITY = 'ogb-lsc-comp'
-WANDB_PROJECT = 'scaling_mol_gnns'
 YAML_FILE_PATH = 'finetune_on_fingerprints_config.yaml'
 os.environ['SWEEP_MODEL_SIZE'] = '10M'
 os.environ['SWEEP_FINGERPRINTS_PATH'] = 'ids_to_fingerprint.pt'
+os.environ['WANDB_ENTITY'] = 'ogb-lsc-comp'
+os.environ['WANDB_PROJECT'] = 'scaling_mol_gnns'
 
 # Constants
 benchmarks = [
@@ -40,10 +40,10 @@ def create_sweep_and_get_id():
     with open(YAML_FILE_PATH, 'r') as file: sweep_config = yaml.safe_load(file)
     sweep_name = f"fingerprint-finetunning-{os.getenv('SWEEP_MODEL_SIZE')}-{os.getenv('SWEEP_DATASET')}"
     sweep_config['name'] = sweep_name
-    return wandb.sweep(sweep=sweep_config, entity=WANDB_ENTITY, project=WANDB_PROJECT)
+    return wandb.sweep(sweep=sweep_config, entity=os.getenv('WANDB_ENTITY'), project=os.getenv('WANDB_PROJECT'))
 
 def get_sweep_status(api):
-    return api.sweep(f"{WANDB_ENTITY}/{WANDB_PROJECT}/{sweep_id}").state
+    return api.sweep(f"{os.getenv('WANDB_ENTITY')}/{os.getenv('WANDB_PROJECT')}/{sweep_id}").state
 
 if __name__ == "__main__":
     wandb.login()

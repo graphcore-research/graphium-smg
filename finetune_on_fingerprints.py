@@ -98,28 +98,27 @@ class Model(nn.Module):
         # Determine activation function
         if activation_fn == 'relu':
             self.activation_fn = F.relu
-        # Add other activation functions if necessary
+        else:
+            raise NotImplementedError(f"Activation function {activation_fn} not implemented.")
 
         # Create layers and batch normalization layers
         for i in range(depth):
-            if self.combine_input == 'concat' and i == depth - 2:
+            if i == 0: # first layer
                 in_dim = input_dim
-                out_dim = input_dim
-            elif self.combine_input == 'concat' and i == depth - 1:
-                in_dim = input_dim + hidden_dim  # Doubled due to concatenation
+                out_dim = hidden_dim
+            elif i == depth - 1: # last layer
+                in_dim = input_dim + hidden_dim if self.combine_input == 'concat' else hidden_dim
                 out_dim = num_classes if num_classes is not None else 1
-            else:
-                in_dim = input_dim if i == 0 else hidden_dim
-                out_dim = hidden_dim if i < depth - 1 else (num_classes if num_classes is not None else 1)
-
+            else: # in between layers
+                in_dim = hidden_dim
+                out_dim = hidden_dim
             self.layers.append(nn.Linear(in_dim, out_dim))
-            if i < depth - 1:  # No batch norm on the output layer
-                self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
+            self.batch_norms += [nn.BatchNorm1d(hidden_dim)] if i != depth - 1 else []
 
     def forward(self, x):
         original_x = x
-        for i, layer in enumerate(self.layers):
-            x = layer(x)
+        for i in range(self.depth):
+            x = self.layers[i](x)
             if i < self.depth - 1:
                 x = self.batch_norms[i](x)
                 x = self.activation_fn(x)
@@ -231,6 +230,9 @@ def main():
     parser.add_argument('--activation-fn', type=str, default='relu', choices=['relu'], help='Activation function')
     parser.add_argument('--combine-input', type=str, default='concat', choices=['concat', 'none'], help='Method to combine input')
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='Dropout rate')
+    # W&B
+    parser.add_argument('--wandb-entity', type=str, default='ogb-lsc-comp', help='')
+    parser.add_argument('--wandb-project', type=str, default='scaling_mol_gnns', help='')  
 
     args = parser.parse_args()
     print(json.dumps(vars(args), indent=5))
@@ -253,7 +255,7 @@ def main():
 
     # Initialize wandb
     run_name = args.name if args.name is not None else f'{args.dataset}'
-    wandb.init(project='scaling_mol_gnns', entity='graphcore', name=run_name)
+    wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name)
     wandb.config.update(args)
 
     # Test random model
