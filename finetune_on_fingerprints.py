@@ -177,7 +177,7 @@ def dataloader_factory(benchmark, i2v, args):
     test_dataset = SingleInstancePredictionDataset(test_samples, args.task_type)
 
     # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
@@ -209,7 +209,7 @@ def adjust_learning_rate(optimizer, epoch, args):
         param_group['lr'] = lr
 
     current_lr = optimizer.param_groups[0]['lr']
-    wandb.log({'epoch': epoch, 'lr': current_lr})
+    wandb.log({'epoch': epoch, 'lr_at_epoch': current_lr})
 
 
 def main():
@@ -224,13 +224,14 @@ def main():
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for training')
     parser.add_argument('--warmup-epochs', type=int, default=2, help='Number of warmup epochs')
     parser.add_argument('--lr-schedule', type=str, default='constant', choices=['constant', 'linear', 'cosine'], help='Learning rate scheduling strategy')
-    # Model arch
+    # Model architecture
     parser.add_argument('--depth', type=int, default=3, help='Depth of the model. Minimum 2. If 2, hidden_dim must equal the input dim.')
     parser.add_argument('--hidden-dim', type=int, default=512, help='Dimension of hidden layers')
     parser.add_argument('--activation-fn', type=str, default='relu', choices=['relu'], help='Activation function')
     parser.add_argument('--combine-input', type=str, default='concat', choices=['concat', 'none'], help='Method to combine input')
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='Dropout rate')
     # W&B
+    parser.add_argument('--wandb-off', action='store_false', help='')
     parser.add_argument('--wandb-entity', type=str, default='ogb-lsc-comp', help='')
     parser.add_argument('--wandb-project', type=str, default='scaling_mol_gnns', help='')  
 
@@ -255,7 +256,8 @@ def main():
 
     # Initialize wandb
     run_name = args.name if args.name is not None else f'{args.dataset}'
-    wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name)
+    mode = 'disabled' if args.wandb_off is False else None
+    wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name, mode=mode)
     wandb.config.update(args)
 
     # Test random model
