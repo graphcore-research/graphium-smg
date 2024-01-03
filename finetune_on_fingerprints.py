@@ -189,8 +189,9 @@ def model_factory(args):
     model = Model(**vars(args))
     loss_fn = nn.CrossEntropyLoss() if args.task_type == 'classification' else nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     summary(model, input_size=(args.input_dim,), batch_size=args.batch_size)
-    return model, loss_fn, optimizer
+    return model, loss_fn, optimizer, trainable_params
 
 def adjust_learning_rate(optimizer, epoch, args):
     if epoch < args.warmup_epochs:
@@ -252,7 +253,7 @@ def main():
     train_dl, val_dl, test_dl, args.input_dim = dataloader_factory(benchmark, i2v, args)    
 
     # Define a model
-    model, loss_fn, optimizer = model_factory(args)
+    model, loss_fn, optimizer, args.trainable_params = model_factory(args)
 
     # Initialize wandb
     run_name = args.name if args.name is not None else f'{args.dataset}'
