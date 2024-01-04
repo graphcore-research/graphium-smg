@@ -52,7 +52,12 @@ def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
                 probs = torch.softmax(outputs, dim=1)[:, 1]
                 all_probs.extend(probs.tolist())
             else:
-                all_outputs.extend(outputs.squeeze().tolist())
+                # Ensure outputs are always in list format
+                outputs = outputs.squeeze()
+                if outputs.dim() == 0:  # Check if outputs is a scalar
+                    all_outputs.append(outputs.item())  # Append scalar directly
+                else:
+                    all_outputs.extend(outputs.tolist())  # Extend list
 
             all_targets.extend(targets.tolist())
 
@@ -218,7 +223,7 @@ def adjust_learning_rate(optimizer, epoch, args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', type=str, default=None, help='Name of the wandb run')
+    parser.add_argument('--model-name', type=str, default='default-model', help='Name of model, is used to construct a name for the wandb run')
     parser.add_argument('--fingerprints-path', type=str, default='ids_to_fingerprint.pt', help='Path to ids_to_fingerprint.pt')
     parser.add_argument('--dataset', type=str, default='Caco2_Wang', help='Name of the benchmark from admet_group')
     parser.add_argument('--epochs', type=int, default=5, help='Number of training epochs')
@@ -259,7 +264,7 @@ def main():
     model, loss_fn, optimizer, args.trainable_params = model_factory(args)
 
     # Initialize wandb
-    run_name = args.name if args.name is not None else f'{args.dataset}'
+    run_name = f"{args.model_name}_{args.dataset}"
     mode = 'disabled' if args.wandb_off is False else None
     wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name, mode=mode)
     wandb.config.update(args)

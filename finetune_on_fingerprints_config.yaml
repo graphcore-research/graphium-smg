@@ -1,7 +1,7 @@
 command:
   - python
   - finetune_on_fingerprints.py
-  - --name=${envvar:SWEEP_MODEL_SIZE}-${envvar:SWEEP_DATASET}
+  - --model-name=${envvar:SWEEP_MODEL_NAME}
   - --dataset=${envvar:SWEEP_DATASET}
   - --fingerprints-path=${envvar:SWEEP_FINGERPRINTS_PATH}
   - ${args}
