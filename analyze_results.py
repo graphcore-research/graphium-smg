@@ -1,8 +1,12 @@
+import os
+import pickle
 import wandb
 
 # Specify your project and entity (username or team name)
 project_name = 'scaling_mol_gnns'
 entity_name = 'ogb-lsc-comp'
+pickle_path = 'sweep_results_dict.pickle'
+csv_path = 'sweep_results_table.csv'
 
 BENCHMARKS = {
     'Caco2_Wang': {'metric_name': 'test_mae', 'definition_of_better': min},
@@ -69,6 +73,28 @@ def best_score_for_sweep(sweep):
         fair_best_score = def_of_better(sweep.runs[best_val_loss_idx].history()[metric['metric_name']])
     return abs_best_score, fair_best_score
 
+def load_results(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as file:
+            return pickle.load(file)
+    return {}
+
+def save_results(results, file_path):
+    with open(file_path, 'wb') as file:
+        pickle.dump(results, file)
+
+def save_to_csv(results, csv_path):
+    import pandas as pd
+    data = [{'model_name': key[0], 'dataset': key[1], **value} for key, value in results.items()]
+
+    df = pd.DataFrame(data)
+    pivot_df = df.pivot(index='dataset', columns='model_name', values=['abs', 'fair'])
+    pivot_df = pivot_df.swaplevel(axis='columns').sort_index(axis='columns')
+    pivot_df.columns = ['_'.join(col).strip() for col in pivot_df.columns.values]
+
+    print(pivot_df)
+    pivot_df.to_csv(csv_path)
+
 
 if __name__ == "__main__":
 
@@ -76,18 +102,27 @@ if __name__ == "__main__":
 
     project = api.project(name=project_name, entity=entity_name)
 
-    results = {}
+    results = load_results(pickle_path)
     sweeps = project.sweeps()
-    
-    for idx, sweep in enumerate(sweeps):
-        print(f"Sweep {idx + 1} / {len(sweeps)} - {sweep.name}")
+
+    # filter
+    filtered_sweeps = [sweep for sweep in sweeps if "|" in sweep.name]
+    for idx, sweep in enumerate(filtered_sweeps):
+        model_name, dataset = sweep.name.split('|')
+        print(f"Sweep {idx + 1} / {len(filtered_sweeps)} - {model_name} - {dataset}")
+        
+        if (model_name, dataset) in results:
+            print(f"Combination of ({model_name}, {dataset}) already exists in results. Skipping...")
+            continue
+
         _ = sweep.load(force=True) # this is needed otherwise sweep.runs is an empty list
         if WANDB_STATES[sweep.state.lower()] is False:
             print(f"Sweep state - {sweep.state.lower()} - continuing to the next one")
             continue
+
         abs_best_score, fair_best_score = best_score_for_sweep(sweep)
-        results[sweep.name] = {"abs": abs_best_score, "fair": fair_best_score}
+        results[(model_name, dataset)] = {"abs": abs_best_score, "fair": fair_best_score}
         print(f"{abs_best_score=}, {fair_best_score=}")
 
-    import json
-    print(json.dumps(results, indent=5))
+    save_results(results, pickle_path)
+    save_to_csv(results, csv_path)
