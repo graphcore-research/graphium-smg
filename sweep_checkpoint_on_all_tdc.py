@@ -2,32 +2,29 @@ import os
 import wandb
 import yaml
 import time
+import argparse
 
-# EDIT HERE
+# EDIT
 YAML_FILE_PATH = 'finetune_on_fingerprints_config.yaml'
-os.environ['SWEEP_MODEL_NAME'] = '10M'
-os.environ['SWEEP_FINGERPRINTS_PATH'] = 'ids_to_fingerprint.pt'
-os.environ['WANDB_ENTITY'] = 'ogb-lsc-comp'
-os.environ['WANDB_PROJECT'] = 'scaling_mol_gnns'
 
 # CONST
 TDC_BENCHMARKS = [
-    # 'Caco2_Wang',
-    # 'Bioavailability_Ma',
-    # 'Lipophilicity_AstraZeneca',
-    # 'Solubility_AqSolDB',
-    # 'HIA_Hou',
-    # 'Pgp_Broccatelli',
-    # 'BBB_Martins',
-    # 'PPBR_AZ',
-    # 'VDss_Lombardo',
-    # 'CYP2C9_Veith',
-    # 'CYP2D6_Veith',
-    # 'CYP3A4_Veith',
-    # 'CYP2C9_Substrate_CarbonMangels',
-    # 'CYP2D6_Substrate_CarbonMangels',
-    # 'CYP3A4_Substrate_CarbonMangels',
-    # 'Half_Life_Obach',
+    'Caco2_Wang',
+    'Bioavailability_Ma',
+    'Lipophilicity_AstraZeneca',
+    'Solubility_AqSolDB',
+    'HIA_Hou',
+    'Pgp_Broccatelli',
+    'BBB_Martins',
+    'PPBR_AZ',
+    'VDss_Lombardo',
+    'CYP2C9_Veith',
+    'CYP2D6_Veith',
+    'CYP3A4_Veith',
+    'CYP2C9_Substrate_CarbonMangels',
+    'CYP2D6_Substrate_CarbonMangels',
+    'CYP3A4_Substrate_CarbonMangels',
+    'Half_Life_Obach',
     'Clearance_Hepatocyte_AZ',
     'Clearance_Microsome_AZ',
     'LD50_Zhu',
@@ -52,9 +49,21 @@ def get_sweep_id_by_name(api, sweep_name):
         if sweep.name == sweep_name:
             return sweep.id
     return None
-
+    
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Sweep Configuration')
+    parser.add_argument('--model_name', type=str, default='10M', help='Name of the sweep model')
+    parser.add_argument('--fingerprints_path', type=str, default='ids_to_fingerprint.pt', help='Path to the fingerprints file')
+    parser.add_argument('--wandb_entity', type=str, default='ogb-lsc-comp', help='W&B entity')
+    parser.add_argument('--wandb_project', type=str, default='scaling_mol_gnns', help='W&B project')
+    args = parser.parse_args()
+
+    os.environ['SWEEP_MODEL_NAME'] = args.model_name
+    os.environ['SWEEP_FINGERPRINTS_PATH'] = args.fingerprints_path
+    os.environ['WANDB_ENTITY'] = args.wandb_entity
+    os.environ['WANDB_PROJECT'] = args.wandb_project
+
     wandb.login()
     api = wandb.Api()
 
