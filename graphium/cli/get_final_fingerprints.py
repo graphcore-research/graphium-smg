@@ -169,29 +169,30 @@ def get_final_fingerprints(cfg: DictConfig) -> None:
 
     results = []
 
-
     # Run the model to get fingerprints
-    
     for index in tqdm(range(0, len(input_features), batch_size)):
         batch = Batch.from_data_list(input_features[index:(index + batch_size)])
         model_fp32 = predictor.model.float()
         output, extras = model_fp32.forward(batch, extra_return_names=["pre_task_heads"])
         fingerprint = extras['pre_task_heads']['graph_feat']
-        results.extend([fingerprint[i] for i in range(batch_size)])
+        results += [fingerprint[i] for i in range(len(fingerprint))]
 
         if index == 0:
             print(fingerprint.shape)
 
-    torch.save(results, "results.pt")
+    # Save .pt files
+    suffix = '_' + unresolved_cfg['run_name_suffix'] if 'run_name_suffix' in unresolved_cfg.keys() else ''
+        
+    torch.save(results, f"results{suffix}.pt")
 
     # Generate dictionary SMILES -> fingerprint vector
     smiles_to_fingerprint = dict(zip(smiles_to_process, results))
-    torch.save(smiles_to_fingerprint, "smiles_to_fingerprint.pt")
+    torch.save(smiles_to_fingerprint, f"smiles_to_fingerprint{suffix}.pt")
 
     # Generate dictionary unique IDs -> fingerprint vector
     ids = [dm.unique_id(smiles) for smiles in smiles_to_process]
     ids_to_fingerprint = dict(zip(ids, results))
-    torch.save(ids_to_fingerprint, "ids_to_fingerprint.pt")
+    torch.save(ids_to_fingerprint, f"ids_to_fingerprint{suffix}.pt")
     
 
 if __name__ == "__main__":
