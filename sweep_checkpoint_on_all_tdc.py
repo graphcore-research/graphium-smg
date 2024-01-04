@@ -11,7 +11,7 @@ os.environ['WANDB_ENTITY'] = 'ogb-lsc-comp'
 os.environ['WANDB_PROJECT'] = 'scaling_mol_gnns'
 
 # Constants
-benchmarks = [
+TDC_BENCHMARKS = [
     {'dataset': 'Caco2_Wang', 'metric': 'MAE'},
     {'dataset': 'Bioavailability_Ma', 'metric': 'AUROC'},
     {'dataset': 'Lipophilicity_AstraZeneca', 'metric': 'MAE'},
@@ -38,7 +38,7 @@ benchmarks = [
 
 def create_sweep_and_get_id():
     with open(YAML_FILE_PATH, 'r') as file: sweep_config = yaml.safe_load(file)
-    sweep_name = f"fingerprint-finetunning-{os.getenv('SWEEP_MODEL_SIZE')}-{os.getenv('SWEEP_DATASET')}"
+    sweep_name = f"[fingerprint]{os.getenv('SWEEP_MODEL_SIZE')}-{os.getenv('SWEEP_DATASET')}"
     sweep_config['name'] = sweep_name
     return wandb.sweep(sweep=sweep_config, entity=os.getenv('WANDB_ENTITY'), project=os.getenv('WANDB_PROJECT'))
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     wandb.login()
     api = wandb.Api()
 
-    for benchmark in benchmarks:
+    for benchmark in TDC_BENCHMARKS:
         os.environ['SWEEP_DATASET'] = benchmark['dataset']
 
         sweep_id = create_sweep_and_get_id()
