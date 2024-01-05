@@ -12,15 +12,15 @@ TDC_BENCHMARKS = [
     'Caco2_Wang',
     'Bioavailability_Ma',
     'Lipophilicity_AstraZeneca',
-    'Solubility_AqSolDB',
+    # 'Solubility_AqSolDB',
     'HIA_Hou',
     'Pgp_Broccatelli',
     'BBB_Martins',
     'PPBR_AZ',
     'VDss_Lombardo',
     'CYP2C9_Veith',
-    'CYP2D6_Veith',
-    'CYP3A4_Veith',
+    # 'CYP2D6_Veith',
+    # 'CYP3A4_Veith',
     'CYP2C9_Substrate_CarbonMangels',
     'CYP2D6_Substrate_CarbonMangels',
     'CYP3A4_Substrate_CarbonMangels',
@@ -81,5 +81,5 @@ if __name__ == "__main__":
             print(f"Created sweep with ID {sweep_id} for dataset {dataset}")
 
         wandb.agent(sweep_id)
-        while get_sweep_status(api, sweep_id) != 'FINISHED':
+        while get_sweep_status(api) != 'FINISHED':
             time.sleep(100)  # every 100 secs check if sweep finished
