@@ -8,29 +8,37 @@ entity_name = 'ogb-lsc-comp'
 pickle_path = 'sweep_results_dict.pickle'
 csv_path = 'sweep_results_table.csv'
 
+DEFINITION_OF_BETTER = {
+    'mae': min,
+    'r2': max,
+    'spearman': max,
+    'auroc': max,
+    'avpr': max
+}
+
 BENCHMARKS = {
-    'Caco2_Wang': {'metric_name': 'test_mae', 'definition_of_better': min},
-    'Bioavailability_Ma': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'Lipophilicity_AstraZeneca': {'metric_name': 'test_mae', 'definition_of_better': min},
-    'Solubility_AqSolDB': {'metric_name': 'test_mae', 'definition_of_better': min},
-    'HIA_Hou': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'Pgp_Broccatelli': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'BBB_Martins': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'PPBR_AZ': {'metric_name': 'test_mae', 'definition_of_better': min},
-    'VDss_Lombardo': {'metric_name': 'test_spearman', 'definition_of_better': max},
-    'CYP2C9_Veith': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'CYP2D6_Veith': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'CYP3A4_Veith': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'CYP2C9_Substrate_CarbonMangels': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'CYP2D6_Substrate_CarbonMangels': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'CYP3A4_Substrate_CarbonMangels': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'Half_Life_Obach': {'metric_name': 'test_spearman', 'definition_of_better': max},
-    'Clearance_Hepatocyte_AZ': {'metric_name': 'test_spearman', 'definition_of_better': max},
-    'Clearance_Microsome_AZ': {'metric_name': 'test_spearman', 'definition_of_better': max},
-    'LD50_Zhu': {'metric_name': 'test_mae', 'definition_of_better': min},
-    'hERG': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'AMES': {'metric_name': 'test_auroc', 'definition_of_better': max},
-    'DILI': {'metric_name': 'test_auroc', 'definition_of_better': max}
+    'Caco2_Wang': 'test_mae',
+    'Bioavailability_Ma': 'test_auroc',
+    'Lipophilicity_AstraZeneca': 'test_mae',
+    'Solubility_AqSolDB': 'test_mae',
+    'HIA_Hou': 'test_auroc',
+    'Pgp_Broccatelli': 'test_auroc',
+    'BBB_Martins': 'test_auroc',
+    'PPBR_AZ': 'test_mae',
+    'VDss_Lombardo': 'test_spearman',
+    'CYP2C9_Veith': 'test_auroc',
+    'CYP2D6_Veith': 'test_auroc',
+    'CYP3A4_Veith': 'test_auroc',
+    'CYP2C9_Substrate_CarbonMangels': 'test_auroc',
+    'CYP2D6_Substrate_CarbonMangels': 'test_auroc',
+    'CYP3A4_Substrate_CarbonMangels': 'test_auroc',
+    'Half_Life_Obach': 'test_spearman',
+    'Clearance_Hepatocyte_AZ': 'test_spearman',
+    'Clearance_Microsome_AZ': 'test_spearman',
+    'LD50_Zhu': 'test_mae',
+    'hERG': 'test_auroc',
+    'AMES': 'test_auroc',
+    'DILI': 'test_auroc',
 }
 
 WANDB_STATES = {
@@ -38,6 +46,8 @@ WANDB_STATES = {
     'crashed': False,
     'finished': True
 }
+
+
 
 def best_score_for_sweep(sweep):
     abs_best_scores = []
@@ -51,11 +61,11 @@ def best_score_for_sweep(sweep):
         
         if metric is None or def_of_better is None: # dataset cant be extracted from a sweep so get it from a run
             metric = BENCHMARKS[run.config['dataset']]
-            def_of_better = metric['definition_of_better']
+            def_of_better = DEFINITION_OF_BETTER[metric.split('_')[-1]]
 
         run_history = run.history()
-        if metric['metric_name'] in run_history.keys():
-            abs_best_scores += [def_of_better(run_history[metric['metric_name']])]
+        if metric in run_history.keys():
+            abs_best_scores += [def_of_better(run_history[metric])]
             val_loss = def_of_better(run_history['val_loss'])
             if best_val_loss is None:
                 best_val_loss = val_loss
@@ -70,7 +80,7 @@ def best_score_for_sweep(sweep):
     if best_val_loss is None:
         fair_best_score = 'NaN'
     else:
-        fair_best_score = def_of_better(sweep.runs[best_val_loss_idx].history()[metric['metric_name']])
+        fair_best_score = def_of_better(sweep.runs[best_val_loss_idx].history()[metric])
     return abs_best_score, fair_best_score
 
 def load_results(file_path):
