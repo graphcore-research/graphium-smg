@@ -167,32 +167,45 @@ def get_final_fingerprints(cfg: DictConfig) -> None:
 
     batch_size = 100
 
-    results = []
-
     # Run the model to get fingerprints
-    for index in tqdm(range(0, len(input_features), batch_size)):
+    
+    for i, index in tqdm(enumerate(range(0, len(input_features), batch_size))):
         batch = Batch.from_data_list(input_features[index:(index + batch_size)])
         model_fp32 = predictor.model.float()
         output, extras = model_fp32.forward(batch, extra_return_names=["pre_task_heads"])
         fingerprint = extras['pre_task_heads']['graph_feat']
-        results += [fingerprint[i] for i in range(len(fingerprint))]
+        num_molecules = min(batch_size, fingerprint.shape[0])
+        results = [fingerprint[i] for i in range(num_molecules)]
+
+        torch.save(results, f'results/res-{i:04}.pt')
 
         if index == 0:
             print(fingerprint.shape)
 
+
+    # combine the results
+    all_results = []
+
+    for i, index in tqdm(enumerate(range(0, len(input_features), batch_size))):
+
+        results = torch.load(f'results/res-{i:04}.pt')
+        all_results.extend(results)
+
+    del input_features
+
     # Save .pt files
     suffix = '_' + unresolved_cfg['run_name_suffix'] if 'run_name_suffix' in unresolved_cfg.keys() else ''
         
-    torch.save(results, f"results{suffix}.pt")
+    torch.save(all_results, f"results/results{suffix}.pt")
 
     # Generate dictionary SMILES -> fingerprint vector
-    smiles_to_fingerprint = dict(zip(smiles_to_process, results))
-    torch.save(smiles_to_fingerprint, f"smiles_to_fingerprint{suffix}.pt")
+    smiles_to_fingerprint = dict(zip(smiles_to_process, all_results))
+    torch.save(smiles_to_fingerprint, f"results/smiles_to_fingerprint{suffix}.pt")
 
     # Generate dictionary unique IDs -> fingerprint vector
     ids = [dm.unique_id(smiles) for smiles in smiles_to_process]
-    ids_to_fingerprint = dict(zip(ids, results))
-    torch.save(ids_to_fingerprint, f"ids_to_fingerprint{suffix}.pt")
+    ids_to_fingerprint = dict(zip(ids, all_results))
+    torch.save(ids_to_fingerprint, f"results/ids_to_fingerprint{suffix}.pt")
     
 
 if __name__ == "__main__":
