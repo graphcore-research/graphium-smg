@@ -65,6 +65,11 @@ def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
     metrics = {f'{evaluation_type}_loss': loss}
 
     if task_type == 'classification':
+        # Filter out NaNs
+        clean_indices = [i for i, x in enumerate(all_probs) if not np.isnan(x)]
+        all_probs = [all_probs[i] for i in clean_indices]
+        all_targets = [all_targets[i] for i in clean_indices]
+        
         auroc = roc_auc_score(all_targets, all_probs)
         avpr = average_precision_score(all_targets, all_probs)
         metrics.update({
@@ -72,6 +77,11 @@ def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
             f'{evaluation_type}_avpr': avpr,
         })
     else:
+        # Filter out NaNs
+        clean_indices = [i for i, x in enumerate(all_outputs) if not np.isnan(x)]
+        all_outputs = [all_outputs[i] for i in clean_indices]
+        all_targets = [all_targets[i] for i in clean_indices]
+
         r2 = r2_score(all_targets, all_outputs)
         mae = mean_absolute_error(all_targets, all_outputs)
         spearman_corr, _ = spearmanr(all_targets, all_outputs)
@@ -196,10 +206,16 @@ def dataloader_factory(benchmark, i2v, args):
 def model_factory(args):
     model = Model(**vars(args))
     loss_fn = nn.CrossEntropyLoss() if args.task_type == 'classification' else nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     summary(model, input_size=(args.input_dim,), batch_size=args.batch_size)
     return model, loss_fn, optimizer, trainable_params
+
+def l1_regularization(model, scale):
+    l1_loss = torch.tensor(0.0, requires_grad=True)
+    for param in model.parameters():
+        l1_loss += torch.norm(param, 1)
+    return scale * l1_loss
 
 def adjust_learning_rate(optimizer, epoch, args):
     if epoch < args.warmup_epochs:
@@ -230,6 +246,7 @@ def main():
     parser.add_argument('--split', type=float, default=0.1, help='Ratio of validation set split')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size for training and evaluation')
     # Learning rate
+    parser.add_argument('--weight-decay', type=float, default=0.0001, help='Learning rate for training')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for training')
     parser.add_argument('--warmup-epochs', type=int, default=2, help='Number of warmup epochs')
     parser.add_argument('--lr-schedule', type=str, default='constant', choices=['constant', 'linear', 'cosine'], help='Learning rate scheduling strategy')
