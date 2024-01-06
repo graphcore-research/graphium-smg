@@ -3,6 +3,7 @@ import wandb
 import yaml
 import time
 import argparse
+import random
 
 # EDIT
 YAML_FILE_PATH = 'finetune_on_fingerprints_config.yaml'
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     os.environ['WANDB_PROJECT'] = args.wandb_project
 
     api = wandb.Api()
-
+    random.shuffle(TDC_BENCHMARKS)
     for dataset in TDC_BENCHMARKS:
         os.environ['SWEEP_DATASET'] = dataset
         sweep_name = f"{os.getenv('SWEEP_MODEL_NAME')}|{dataset}"
