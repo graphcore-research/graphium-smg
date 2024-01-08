@@ -95,15 +95,24 @@ def save_results(results, file_path):
 
 def save_to_csv(results, csv_path):
     import pandas as pd
-    data = [{'model_name': key[0], 'dataset': key[1], **value} for key, value in results.items()]
 
+    # Convert results to DataFrame
+    data = [{'model_name': key[0], 'dataset': key[1], **value} for key, value in results.items()]
     df = pd.DataFrame(data)
+
+    # Pivot the DataFrame
     pivot_df = df.pivot(index='dataset', columns='model_name', values=['abs', 'fair'])
     pivot_df = pivot_df.swaplevel(axis='columns').sort_index(axis='columns')
     pivot_df.columns = ['_'.join(col).strip() for col in pivot_df.columns.values]
 
-    print(pivot_df)
-    pivot_df.to_csv(csv_path)
+    # Create a DataFrame with all datasets from BENCHMARKS as index
+    all_datasets_df = pd.DataFrame(index=BENCHMARKS.keys())
+
+    # Merge with pivot_df to include all datasets, filling missing ones with NaN
+    complete_df = all_datasets_df.join(pivot_df, how='left')
+
+    print(complete_df)
+    complete_df.to_csv(csv_path)
 
 
 if __name__ == "__main__":
