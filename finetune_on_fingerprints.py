@@ -22,13 +22,21 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch):
     model.train()
     total_loss = 0
     for inputs, targets in dataloader:
-        optimizer.zero_grad()
-        outputs = model(inputs.float())
-        targets = targets.long() if task_type == 'classification' else targets.float()
-        loss = loss_fn(outputs.squeeze(), targets)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
+
+        # Filter samples with NaNs out
+        nan_mask = ~torch.isnan(inputs).any(dim=1)
+        filtered_inputs = inputs[nan_mask]
+        filtered_targets = targets[nan_mask]
+
+        if len(filtered_inputs) > 0:
+            optimizer.zero_grad()
+            outputs = model(filtered_inputs.float())
+            targets = filtered_targets.long() if task_type == 'classification' else filtered_targets.float()
+            loss = loss_fn(outputs.squeeze(), filtered_targets)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
     loss = total_loss / len(dataloader)
     wandb.log({'epoch': epoch, 'train_loss': loss})
     print(f"Epoch {epoch+1} - Train Loss: {loss}")
