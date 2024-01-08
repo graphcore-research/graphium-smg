@@ -31,7 +31,7 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch):
         if len(filtered_inputs) > 0:
             optimizer.zero_grad()
             outputs = model(filtered_inputs.float())
-            targets = filtered_targets.long() if task_type == 'classification' else filtered_targets.float()
+            filtered_targets = filtered_targets.long() if task_type == 'classification' else filtered_targets.float()
             loss = loss_fn(outputs.squeeze(), filtered_targets)
             loss.backward()
             optimizer.step()
