@@ -2,7 +2,7 @@ import math
 import wandb
 import argparse
 import json
-from functools import partial
+from copy import deepcopy
 import numpy as np
 
 import datamol as dm
@@ -17,8 +17,11 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score, mean_absolute_error
 from scipy.stats import spearmanr
 
+SEEDS = [345374, 467039, 986009, 916060, 641316, 798438, 665204, 373079, 228395, 935414]
 
-def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch):
+
+# model stuff
+def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch, fold):
     model.train()
     total_loss = 0
     for inputs, targets in dataloader:
@@ -38,12 +41,11 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch):
             total_loss += loss.item()
 
     loss = total_loss / len(dataloader)
-    wandb.log({'epoch': epoch, 'train_loss': loss})
-    print(f"Epoch {epoch+1} - Train Loss: {loss}")
+    wandb.log({'epoch': epoch + fold, 'train_loss': loss})
+    print(f"## Epoch {epoch+1} - Train Loss: {loss:.4f}")
     return model
 
-
-def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
+def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch, fold):
     model.eval()
     total_loss = 0
     all_outputs = []  # For regression, store raw outputs
@@ -99,10 +101,14 @@ def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch):
             f'{evaluation_type}_spearman': spearman_corr,   
         })
 
-    wandb.log({**metrics, 'epoch': epoch})
-    print(json.dumps(metrics, indent=5))
-    print()
+    if evaluation_type == 'val':
+        wandb.log({**metrics, 'epoch': epoch + fold})
+    else:
+        wandb.log({**metrics, 'fold': fold})
 
+    print(json.dumps(metrics, indent=5))
+    
+    return metrics
 
 class Model(nn.Module):
     def __init__(self, input_dim, depth=3, hidden_dim=512, activation_fn='relu', combine_input='concat', num_classes=None, dropout_rate=0.1, **kwargs):
@@ -159,55 +165,56 @@ class Model(nn.Module):
         return x
 
 
-class SingleInstancePredictionDataset(Dataset):
-    def __init__(self, samples_df, task_type):
-        self.samples = samples_df['Drug'].tolist()
-        self.targets = samples_df['Y'].tolist()
-        if task_type == 'classification':
-            self.targets = [float(target) for target in self.targets]
 
-    def __len__(self):
-        return len(self.samples)
 
-    def __getitem__(self, idx):
-        sample = torch.tensor(self.samples[idx])
-        target = torch.tensor(self.targets[idx])
-        return sample, target
 
-def match_and_replace_input_column(samples_df, i2v):
-    transformed_df = samples_df.copy()
-    transformed_df["Drug"] = transformed_df['Drug'].apply(
-        lambda s: i2v[dm.unique_id(s)].detach().numpy())
-    return transformed_df
+# factories
+def dataloader_factory(split_name, group, benchmark, i2v, args, seed=42):
+    assert split_name == 'train+val' or split_name == 'test', "Wrong value for `split_name` argument passed to dataloader_factory"
 
-def determine_task_type(samples_df):
-    if np.issubdtype(samples_df['Y'].dtype, np.integer):
-        return 'classification', len(samples_df['Y'].unique())
-    else:
-        return 'regression', None
+    def match_and_replace_input_column(samples_df):
+        transformed_df = samples_df.copy()
+        transformed_df["Drug"] = transformed_df['Drug'].apply(
+            lambda s: i2v[dm.unique_id(s)].detach().numpy())
+        return transformed_df
 
-def dataloader_factory(benchmark, i2v, args):
-    match_and_replace_input_column_partial = partial(match_and_replace_input_column, i2v=i2v)
+    class SingleInstancePredictionDataset(Dataset):
+        def __init__(self, samples_df, task_type):
+            self.samples = samples_df['Drug'].tolist()
+            self.targets = samples_df['Y'].tolist()
+            if task_type == 'classification':
+                self.targets = [float(target) for target in self.targets]
+
+        def __len__(self):
+            return len(self.samples)
+
+        def __getitem__(self, idx):
+            sample = torch.tensor(self.samples[idx])
+            target = torch.tensor(self.targets[idx])
+            return sample, target
+
+    train_loader, val_loader, test_loader, input_dim = None, None, None, None
     
-    # Split the samples into train, val and test
-    train_samples = match_and_replace_input_column_partial(benchmark['train_val'])
-    test_samples = match_and_replace_input_column_partial(benchmark['test'])
-    train_samples = train_samples.sample(frac=1, random_state=42).reset_index(drop=True)
-    val_size = int(len(train_samples) * args.split)
-    val_samples = train_samples[:val_size]
-    train_samples = train_samples[val_size:]
+    if split_name == 'train+val':
+        train_split, val_split = group.get_train_valid_split(benchmark=args.dataset, split_type='scaffold', seed=seed)
+    
+        train_samples = match_and_replace_input_column(train_split)
+        val_samples = match_and_replace_input_column(val_split)
+        
+        train_dataset = SingleInstancePredictionDataset(train_samples, args.task_type)
+        val_dataset = SingleInstancePredictionDataset(val_samples, args.task_type)
 
-    # Create datasets
-    train_dataset = SingleInstancePredictionDataset(train_samples, args.task_type)
-    val_dataset = SingleInstancePredictionDataset(val_samples, args.task_type)
-    test_dataset = SingleInstancePredictionDataset(test_samples, args.task_type)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+    else:
+        test_split = benchmark['test']
+        test_samples = match_and_replace_input_column(test_split)
 
-    # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+        test_dataset = SingleInstancePredictionDataset(test_samples, args.task_type)
 
-    input_dim = train_samples['Drug'].iloc[0].shape[0]
+        test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+
+        input_dim = test_samples['Drug'].iloc[0].shape[0]
 
     return train_loader, val_loader, test_loader, input_dim
 
@@ -219,6 +226,11 @@ def model_factory(args):
     summary(model, input_size=(args.input_dim,), batch_size=args.batch_size)
     return model, loss_fn, optimizer, trainable_params
 
+
+
+
+
+# optimiser stuff
 def l1_regularization(model, scale):
     l1_loss = torch.tensor(0.0, requires_grad=True)
     for param in model.parameters():
@@ -245,6 +257,46 @@ def adjust_learning_rate(optimizer, epoch, args):
     wandb.log({'epoch': epoch, 'lr_at_epoch': current_lr})
 
 
+
+
+### a bunch of utils functions
+def determine_task_type(samples_df):
+    if np.issubdtype(samples_df['Y'].dtype, np.integer) or len(samples_df['Y'].unique()) == 2:
+        return 'classification', len(samples_df['Y'].unique())
+    else:
+        return 'regression', None
+    
+def aggregate_dicts(dicts):
+    aggr_dict = {}
+    for d in dicts:
+        for key, value in d.items():
+            # Ensure value is not a list to avoid nesting
+            if not isinstance(value, list):
+                if key in aggr_dict:
+                    aggr_dict[key].append(value)
+                else:
+                    aggr_dict[key] = [value]
+            else:
+                # Handle the case where the value is already a list
+                if key in aggr_dict:
+                    aggr_dict[key].extend(value)
+                else:
+                    aggr_dict[key] = value
+    return aggr_dict
+
+def calculate_statistics(aggr_dict):
+    result = {}
+    for key, values in aggr_dict.items():
+        min_val = min(values)
+        max_val = max(values)
+        mean_val = sum(values) / len(values) if values else 0
+        variance = sum((x - mean_val) ** 2 for x in values) / len(values) if len(values) > 1 else 0
+        std_val = variance ** 0.5
+        result[key] = {'min': min_val, 'max': max_val, 'mean': mean_val, 'std': std_val}
+    return result
+
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-name', type=str, default='default-model', help='Name of model, is used to construct a name for the wandb run')
@@ -253,6 +305,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=5, help='Number of training epochs')
     parser.add_argument('--split', type=float, default=0.1, help='Ratio of validation set split')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size for training and evaluation')
+    parser.add_argument('--num-cross-validation-folds', type=int, default=1, help='')
     # Learning rate
     parser.add_argument('--weight-decay', type=float, default=0.0001, help='Learning rate for training')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for training')
@@ -282,31 +335,50 @@ def main():
     # Determine task type and number of classes
     args.task_type, args.num_classes = determine_task_type(benchmark['train_val'])
 
-    # Construct dataloaders
-    train_dl, val_dl, test_dl, args.input_dim = dataloader_factory(benchmark, i2v, args)    
+    _, _, test_dl, args.input_dim = dataloader_factory("test", group, benchmark, i2v, args)
 
-    # Define a model
-    model, loss_fn, optimizer, args.trainable_params = model_factory(args)
+    results = {}
 
-    # Initialize wandb
-    run_name = f"{args.model_name}_{args.dataset}"
-    mode = 'disabled' if args.wandb_off is False else None
-    wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name, mode=mode)
-    wandb.config.update(args)
+    for seed, fold in zip(SEEDS, range(args.num_cross_validation_folds)):
+        # Construct dataloaders
+        train_dl, val_dl, _, _ = dataloader_factory("train+val", group, benchmark, i2v, args, seed=seed)    
 
-    # Test random model
-    epoch = 0
-    evaluate(model, test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch)
+        # Define a model
+        model, loss_fn, optimizer, args.trainable_params = model_factory(args)
 
-    # Training and validation loop
-    for epoch in range(args.epochs):
-        print(f"Epoch {epoch+1}/{args.epochs}")
-        adjust_learning_rate(optimizer, epoch, args)
-        model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch)
-        evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch)
+        # Initialize wandb
+        run_name = f"{args.model_name}_{args.dataset}"
+        mode = 'disabled' if args.wandb_off is False else None
+        wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name, mode=mode)
+        wandb.config.update(args)
 
-    # Test trained model
-    evaluate(model, test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch)
+        # Test random model
+        epoch = 0
+        # evaluate(model, test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch)
+        
+        best_epoch = {'val_results': None, 'model': None}
+        # Training and validation loop
+        for epoch in range(args.epochs):
+            print(f"## Fold {fold+1}/{args.num_cross_validation_folds} | Epoch {epoch+1}/{args.epochs}")
+            adjust_learning_rate(optimizer, epoch, args)
+            model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch, fold)
+            val_results = evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch, fold=fold)
+
+            # keep best model and validation loss value
+            if best_epoch['model'] is None:
+                best_epoch['model'] = deepcopy(model)
+                best_epoch['val_results'] = deepcopy(val_results)
+            else:
+                best_epoch['model'] = best_epoch['model'] if best_epoch['val_results']['val_loss'] <= val_results['val_loss'] else deepcopy(model)
+                best_epoch['val_results'] = best_epoch['val_results'] if best_epoch['val_results']['val_loss'] <= val_results['val_loss'] else deepcopy(val_results)
+
+        # Test trained model
+        eval_results = evaluate(best_epoch['model'], test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch, fold=fold)
+        results = aggregate_dicts(dicts=[results, best_epoch['val_results'], eval_results])
+
+    print(json.dumps(results, indent=5))
+    print(json.dumps(calculate_statistics(results), indent=5))
+    wandb.run.summary['statistics'] = calculate_statistics(results)
     wandb.finish()
 
 if __name__ == "__main__":

@@ -57,13 +57,14 @@ if __name__ == "__main__":
     parser.add_argument('--model-name', type=str, default='10M', help='Name of the sweep model')
     parser.add_argument('--fingerprints-path', type=str, default='ids_to_fingerprint.pt', help='Path to the fingerprints file')
     parser.add_argument('--wandb-entity', type=str, default='ogb-lsc-comp', help='W&B entity')
-    parser.add_argument('--wandb-project', type=str, default='scaling_mol_gnns', help='W&B project')
+    parser.add_argument('--wandb-project', type=str, default='scale_mol_gnns_fingerprinting', help='W&B project')
     args = parser.parse_args()
 
     os.environ['SWEEP_MODEL_NAME'] = args.model_name
     os.environ['SWEEP_FINGERPRINTS_PATH'] = args.fingerprints_path
     os.environ['WANDB_ENTITY'] = args.wandb_entity
     os.environ['WANDB_PROJECT'] = args.wandb_project
+    os.environ['SWEEP_CROSS_VALIDATION_FOLDS'] = str(5)
 
     api = wandb.Api()
     random.shuffle(TDC_BENCHMARKS)

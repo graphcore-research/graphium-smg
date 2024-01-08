@@ -4,12 +4,13 @@ command:
   - --model-name=${envvar:SWEEP_MODEL_NAME}
   - --dataset=${envvar:SWEEP_DATASET}
   - --fingerprints-path=${envvar:SWEEP_FINGERPRINTS_PATH}
+  - --num-cross-validation-folds=${envvar:SWEEP_CROSS_VALIDATION_FOLDS}
   - ${args}
 entity: graphcore
 method: grid
 metric:
   goal: minimize
-  name: val_loss
+  name: statistics.test_loss.mean
 parameters:
   epochs:
     values:
