@@ -81,7 +81,7 @@ def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch, fold
         all_targets = [all_targets[i] for i in clean_indices]
         
         auroc = roc_auc_score(all_targets, all_probs)
-        avpr = average_precision_score(all_targets, all_probs)
+        avpr = average_precision_score(all_targets, all_probs) # apparently same as AUPRC
         metrics.update({
             f'{evaluation_type}_auroc': auroc,
             f'{evaluation_type}_avpr': avpr,
