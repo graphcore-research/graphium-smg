@@ -1,45 +1,19 @@
-from typing import List, Literal, Union
 import os
-import time
 import timeit
-from datetime import datetime
 
-import fsspec
 import hydra
-import numpy as np
 import torch
-import wandb
-import yaml
-from datamol.utils import fs
-from hydra.core.hydra_config import HydraConfig
-from hydra.types import RunMode
 from lightning.pytorch.utilities.model_summary import ModelSummary
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
 from graphium.config._loader import (
     load_accelerator,
-    load_architecture,
+    load_mup,
     load_datamodule,
-    load_metrics,
-    load_predictor,
-    load_trainer,
-    save_params_to_wandb,
     get_checkpoint_path,
 )
-from graphium.finetuning import (
-    FINETUNING_CONFIG_KEY,
-    GraphFinetuning,
-    modify_cfg_for_finetuning,
-)
-from graphium.hyper_param_search import (
-    HYPER_PARAM_SEARCH_CONFIG_KEY,
-    extract_main_metric_for_hparam_search,
-)
 from graphium.trainer.predictor import PredictorModule
-from graphium.utils.safe_run import SafeRun
-
-import graphium.cli.finetune_utils
 
 from tqdm import tqdm
 from copy import deepcopy
@@ -47,7 +21,6 @@ from tdc.benchmark_group import admet_group
 import datamol as dm
 import sys
 from torch_geometric.data import Batch
-import random
 
 TESTING_ONLY_CONFIG_KEY = "testing_only"
 
@@ -161,6 +134,8 @@ def get_final_fingerprints(cfg: DictConfig) -> None:
     predictor = PredictorModule.load_pretrained_model(
         name_or_path=get_checkpoint_path(cfg), device=accelerator_type
     )
+    predictor = load_mup(mup_base_path=cfg['architecture']['mup_base_path'], predictor=predictor)
+
 
     logger.info(predictor.model)
     logger.info(ModelSummary(predictor, max_depth=4))

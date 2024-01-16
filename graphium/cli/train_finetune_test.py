@@ -24,6 +24,7 @@ from graphium.config._loader import (
     load_metrics,
     load_predictor,
     load_trainer,
+    load_mup,
     save_params_to_wandb,
     get_checkpoint_path,
 )
@@ -134,11 +135,15 @@ def run_training_finetuning_testing(cfg: DictConfig) -> None:
     now = datetime.now()
     # Format the datetime as a string
     filename_datetime_suffix = now.strftime("%Y%m%d_%H%M%S")
-    # Append the datetime string to the existing filename in the cfg dictionary
-    cfg["trainer"]["model_checkpoint"]["filename"] += f"_{filename_datetime_suffix}"
-    cfg["trainer"]["model_checkpoint"]["dirpath"] = (
-        cfg["trainer"]["model_checkpoint"]["dirpath"][:-1] + f"_{filename_datetime_suffix}"
-    )
+
+    testing_only = cfg.get(TESTING_ONLY_CONFIG_KEY, False)
+
+    if not testing_only:
+        # Append the datetime string to the existing filename in the cfg dictionary
+        cfg["trainer"]["model_checkpoint"]["filename"] += f"_{filename_datetime_suffix}"
+        cfg["trainer"]["model_checkpoint"]["dirpath"] = (
+            cfg["trainer"]["model_checkpoint"]["dirpath"][:-1] + f"_{filename_datetime_suffix}"
+        )
 
     dst_dir = cfg["constants"].get("results_dir")
     hydra_cfg = HydraConfig.get()
@@ -180,13 +185,12 @@ def run_training_finetuning_testing(cfg: DictConfig) -> None:
     datamodule = load_datamodule(cfg, accelerator_type)
     datamodule.prepare_data()
 
-    testing_only = cfg.get(TESTING_ONLY_CONFIG_KEY, False)
-
     if testing_only:
         # Load pre-trained model
         predictor = PredictorModule.load_pretrained_model(
             name_or_path=get_checkpoint_path(cfg), device=accelerator_type
         )
+        predictor = load_mup(mup_base_path=cfg['architecture']['mup_base_path'], predictor=predictor)
 
     else:
         ## Architecture
