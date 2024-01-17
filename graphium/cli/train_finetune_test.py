@@ -1,4 +1,3 @@
-from typing import List, Literal, Union
 import os
 import time
 import timeit
@@ -6,7 +5,6 @@ from datetime import datetime
 
 import fsspec
 import hydra
-import numpy as np
 import torch
 import wandb
 import yaml
@@ -39,8 +37,6 @@ from graphium.hyper_param_search import (
 )
 from graphium.trainer.predictor import PredictorModule
 from graphium.utils.safe_run import SafeRun
-
-import graphium.cli.finetune_utils
 
 TESTING_ONLY_CONFIG_KEY = "testing_only"
 

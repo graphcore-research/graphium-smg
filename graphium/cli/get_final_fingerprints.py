@@ -1,6 +1,7 @@
 import os
 import timeit
 
+import numpy as np
 import hydra
 import torch
 from lightning.pytorch.utilities.model_summary import ModelSummary
@@ -148,14 +149,28 @@ def get_final_fingerprints(cfg: DictConfig) -> None:
         batch = Batch.from_data_list(input_features[index:(index + batch_size)])
         model_fp32 = predictor.model.float()
         output, extras = model_fp32.forward(batch, extra_return_names=["pre_task_heads"])
-        fingerprint = extras['pre_task_heads']['graph_feat']
-        num_molecules = min(batch_size, fingerprint.shape[0])
-        results = [fingerprint[i] for i in range(num_molecules)]
+        fingerprint_graph = extras['pre_task_heads']['graph_feat']
+        fingerprint_head = extras['pre_task_heads']['feat']
+
+        # Calculate cumulative sum of node counts for each graph in the batch
+        node_counts = [data.num_nodes for data in batch.to_data_list()]
+        cumulative_node_counts = np.cumsum([0] + node_counts)
+
+        num_molecules = min(batch_size, fingerprint_graph.shape[0])
+        results = []
+        for mol_idx in range(num_molecules):
+            mol_graph = batch.get_example(mol_idx)
+            start_idx = cumulative_node_counts[mol_idx]
+            end_idx = cumulative_node_counts[mol_idx + 1]
+
+            mol_graph['feat'] = fingerprint_head[start_idx:end_idx]
+            result = {'graph_feat': fingerprint_graph[mol_idx], 'node_feat': mol_graph}
+            results.append(result)
 
         torch.save(results, f'results/res-{i:04}.pt')
 
         if index == 0:
-            print(fingerprint.shape)
+            print(fingerprint_graph.shape)
 
 
     # combine the results
