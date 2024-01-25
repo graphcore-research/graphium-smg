@@ -45,10 +45,23 @@ BENCHMARKS = {
 WANDB_STATES = {
     'running': False,
     'crashed': False,
-    'finished': True
+    'killed': False,
+    'failed': False,
+    'finished': True,
 }
 
-
+# if you want to order the columns in the table, specify the order here
+MODELS = [ 
+    "11M-old-GPS++", "13M", "38M-GPS++", "11M-easy-th", 
+    "40M-MPNN-easy-th", "BackToOg_10M", "BackToOg_35M", 
+    "BackToOg_130M", "BackToOg_10M_easy-th_mup_best", 
+    "BackToOg_10M_easy-th_mup_last",
+    "BackToOg_35M_easy-th_mup_best",
+    "BackToOg_130M_easy-th_mup_best",
+    "BackToOg_300M_easy-th_mup_best",
+    "BackToOg_35M_easy-th_mup_frac-sampl",
+    "BackToOg_300M_easy-th_mup_frac-sampl"
+]
 
 def find_best_score_for_sweep(sweep):
     mean_test_scores, std_test_scores, run_indices = [], [], []
@@ -63,10 +76,11 @@ def find_best_score_for_sweep(sweep):
             metric = BENCHMARKS[run.config['dataset']]
             def_of_better = DEFINITION_OF_BETTER[metric.split('_')[-1]]
 
-        run_statistics = run.summary_metrics['statistics']
-        if f"{metric}" in run_statistics.keys():
-            mean_test_scores += [run_statistics[metric]['mean']]
-            std_test_scores += [run_statistics[metric]['std']]
+        if "statistics" in run.summary_metrics.keys():
+            run_statistics = run.summary_metrics['statistics']
+            if f"{metric}" in run_statistics.keys():
+                mean_test_scores += [run_statistics[metric]['mean']]
+                std_test_scores += [run_statistics[metric]['std']]
 
     # use appropriate reduction for the metric to get the best score in the sweep
     best_mean_test_score = def_of_better(mean_test_scores) if len(mean_test_scores) else 'NaN'
@@ -90,7 +104,7 @@ def save_results(results, file_path):
     with open(file_path, 'wb') as file:
         pickle.dump(results, file)
 
-def save_to_csv(results, csv_path):
+def save_to_csv(results, csv_path=None):
     # Prepare a list for DataFrame rows
     data = []
 
@@ -114,8 +128,18 @@ def save_to_csv(results, csv_path):
     # Set the 'Metric' and 'Dataset' columns as a multi-index
     df.set_index(['Metric', 'Dataset'], inplace=True)
 
-    # Save to CSV
-    df.to_csv(csv_path)
+    # Handle unspecified order in MODELS or additional columns
+    ordered_columns = [model for model in MODELS if model in df.columns]
+    additional_columns = [model for model in df.columns if model not in MODELS]
+    final_columns_order = ordered_columns + additional_columns
+
+    df = df[final_columns_order]
+
+    if csv_path is not None:
+        df.to_csv(csv_path)
+
+    return df
+
 
 
 if __name__ == "__main__":

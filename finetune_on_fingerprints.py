@@ -1,3 +1,4 @@
+import os
 import math
 import wandb
 import argparse
@@ -19,6 +20,8 @@ from scipy.stats import spearmanr
 
 SEEDS = [345374, 467039, 986009, 916060, 641316, 798438, 665204, 373079, 228395, 935414]
 
+cpu_cores = os.cpu_count()
+print(f"Number of available CPU cores: {cpu_cores}")
 
 # model stuff
 def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch, fold):
@@ -295,6 +298,23 @@ def calculate_statistics(aggr_dict):
         result[key] = {'min': min_val, 'max': max_val, 'mean': mean_val, 'std': std_val}
     return result
 
+def parse_cpu_slice_argument(cpu_slice):
+    try:
+        n, k = map(int, "".join(cpu_slice).split('.'))
+        return (n, k)
+    except ValueError:
+        raise argparse.ArgumentTypeError("CPU slice must be in the format 'n.k'")
+
+def select_cpu_cores(slicing):
+    slice_idx, num_slices = slicing
+    total_cpus = os.cpu_count()
+    slice_size = total_cpus // num_slices
+    start = slice_size * (slice_idx - 1)
+    end = start + slice_size
+
+    cpu_cores = set(range(start, end))
+    os.sched_setaffinity(0, cpu_cores)
+    print(f"Setting CPU affinity to cores: {cpu_cores}")
 
 
 def main():
@@ -321,9 +341,14 @@ def main():
     parser.add_argument('--wandb-off', action='store_false', help='')
     parser.add_argument('--wandb-entity', type=str, default='ogb-lsc-comp', help='')
     parser.add_argument('--wandb-project', type=str, default='scaling_mol_gnns', help='')  
+    # Bare metal
+    parser.add_argument('--cpu-slice', type=parse_cpu_slice_argument, default="1.1", help='CPU slice in format n.k')
 
     args = parser.parse_args()
     print(json.dumps(vars(args), indent=5))
+
+    # explicitly select cpu cores - accelerates running mulitple sweepers on one machine
+    select_cpu_cores(args.cpu_slice)
 
     # Load the id to fingerprint mapping
     i2v = torch.load(args.fingerprints_path)
