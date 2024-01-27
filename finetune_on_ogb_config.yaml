@@ -1,0 +1,46 @@
+command:
+  - python
+  - finetune_on_ogb_fingerprints.py
+  - --model-name=${envvar:SWEEP_MODEL_NAME}
+  - --dataset=${envvar:SWEEP_DATASET}
+  - --fingerprints-path=${envvar:SWEEP_FINGERPRINTS_PATH}
+  - --num-cross-validation-folds=${envvar:SWEEP_CROSS_VALIDATION_FOLDS}
+  - --epochs=20
+  - ${args}
+entity: lmueller
+method: grid
+metric:
+  goal: minimize
+  name: statistics.test_loss.mean
+parameters:
+  combine-input:
+    values:
+      - concat
+      - none
+  depth:
+    values:
+      - 3
+      - 4
+  dropout-rate:
+    values:
+      - 0
+      - 0.1
+  hidden-dim:
+    values:
+      - 512
+      - 1024
+      - 2048
+  lr:
+    values:
+      - 0.00075
+      - 0.0003
+      - 0.0001
+  warmup-epochs:
+    values:
+      - 0
+      - 5
+  lr-schedule:
+    values:
+      - constant
+      - linear
+      - cosine
