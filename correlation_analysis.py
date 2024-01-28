@@ -6,24 +6,19 @@ api = wandb.Api()
 
 metrics_keys = [
     "loss/val",
-    "graph_l1000_mcf7/HybridCELossIPU/val",
     "graph_l1000_mcf7/loss/val",
     "graph_l1000_mcf7/avpr/val",
     "graph_l1000_mcf7/auroc/val",
-    "graph_l1000_vcap/HybridCELossIPU/val",
     "graph_l1000_vcap/loss/val",
     "graph_l1000_vcap/avpr/val",
     "graph_l1000_vcap/auroc/val",
-    "graph_pcba_1328/BCEWithLogitsLossIPU/val",
     "graph_pcba_1328/loss/val",
     "graph_pcba_1328/auroc/val",
     "graph_pcba_1328/avpr/val",
-    "graph_pcqm4m_g25/L1LossIPU/val",
     "graph_pcqm4m_g25/loss/val",
     "graph_pcqm4m_g25/mae/val",
     "graph_pcqm4m_g25/pearsonr/val",
     "graph_pcqm4m_g25/r2/val",
-    "node_pcqm4m_n4/L1LossIPU/val",
     "node_pcqm4m_n4/loss/val",
     "node_pcqm4m_n4/mae/val",
     "node_pcqm4m_n4/pearsonr/val",
@@ -39,76 +34,51 @@ class Experiment:
 
 
 Experiments = [
-    # BackToOg
-    # Experiment(
-    #     wandb_path='research/MolecularFoundationModel_Pretraining/qa58jssi',
-    #     model_name='BackToOg_10M',
-    #     ckpt_select_metric='loss/val'
-    # ),
-    # Experiment(
-    #     wandb_path='research/MolecularFoundationModel_Pretraining/4dxykckb',
-    #     model_name='BackToOg_35M',
-    #     ckpt_select_metric='loss/val'
-    # ),
-    # Experiment(
-    #     wandb_path='research/MolecularFoundationModel_Pretraining/8w7sn65l',
-    #     model_name='BackToOg_130M',
-    #     ckpt_select_metric='loss/val'
-    # ),
-    # BackToOg_easy-th_mup
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/gxrway4n',
-        model_name='BackToOg_10M_easy-th_mup_best',
-        ckpt_select_metric='loss/val'
-    ),
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/gxrway4n',
-        model_name='BackToOg_10M_easy-th_mup_last',
-        ckpt_select_metric='last'
-    ),
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/jez9iff1',
-        model_name='BackToOg_35M_easy-th_mup_best',
-        ckpt_select_metric='loss/val'
-    ),
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/yvqt6gmd',
-        model_name='BackToOg_130M_easy-th_mup_best',
-        ckpt_select_metric='loss/val'
-    ),
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/30vtsfto',
-        model_name='BackToOg_300M_easy-th_mup_best',
-        ckpt_select_metric='loss/val'
-    ),
-    # BackToOg_easy-th_mup_frac-sampl
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/wvipu6u9',
-        model_name='BackToOg_35M_easy-th_mup_frac-sampl',
-        ckpt_select_metric='loss/val'
-    ),
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/9soy6b30',
-        model_name='BackToOg_130M_easy-th_mup_frac-sampl',
-        ckpt_select_metric='loss/val'
-    ),
-    # BugFixOg 2e-4
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/3kkjbtm3',
-        model_name='BugFixOg_10M',
-        ckpt_select_metric='loss/val'
-    ),
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/25f0n0ae',
-        model_name='BugFixOg_35M',
-        ckpt_select_metric='loss/val'
-    ),
+    # BugFixOg_2e-1-g25-loss_g25do
+    Experiment(model_name='BugFixOg_2e-1-g25-loss_g25do_35M_best',      ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/304j0fb5'),
+    Experiment(model_name='BugFixOg_2e-1-g25-loss_g25do_35M_last',      ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/304j0fb5'),
+    Experiment(model_name='BugFixOg_2e-1-g25-loss_g25do_130M_best',     ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/g30ce5ux'),
+    Experiment(model_name='BugFixOg_2e-1-g25-loss_g25do_130M_last',     ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/g30ce5ux'),
+
+    # BugFixOg_layernorm
+    Experiment(model_name='BugFixOg_layernorm_10M_best',        ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/31diwyje'),
+    Experiment(model_name='BugFixOg_layernorm_10M_last',        ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/31diwyje'),
+    Experiment(model_name='BugFixOg_layernorm_35M_best',        ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/40z13f25'),
+    Experiment(model_name='BugFixOg_layernorm_35M_last',        ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/40z13f25'),
+    Experiment(model_name='BugFixOg_layernorm_130M_best',       ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/1c83jps3'),
+    Experiment(model_name='BugFixOg_layernorm_130M_last',       ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/1c83jps3'),
+    Experiment(model_name='BugFixOg_layernorm_300M_best',       ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/4i0t2jl8'),
+
+    # BugFixOg_5e-1-g25-loss
+    Experiment(model_name='BugFixOg_5e-1-g25-loss_10M_best',    ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/tffsomax'),
+    Experiment(model_name='BugFixOg_5e-1-g25-loss_10M_last',    ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/tffsomax'),
+    Experiment(model_name='BugFixOg_5e-1-g25-loss_35M_best',    ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/due9put8'),
+    Experiment(model_name='BugFixOg_5e-1-g25-loss_130M_best',   ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/obafj9m9'),
+    Experiment(model_name='BugFixOg_5e-1-g25-loss_300M_best',   ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/v57hbdix'),
+
+    # BugFixOg 1e-4
+    Experiment(model_name='BugFixOg_10M_1e-4_best',             ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/xnlulvle'),
+    Experiment(model_name='BugFixOg_35M_1e-4_best',             ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/wi5sfswn'),
+    Experiment(model_name='BugFixOg_130M_1e-4_best',            ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/bddckgo1'),
+    Experiment(model_name='BugFixOg_300M_1e-4_best',            ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/jc7klabw'),
+    
     # BugFixOg 3e-4 g25-loss
-    Experiment(
-        wandb_path='research/MolecularFoundationModel_Pretraining/sjuvmmo0',
-        model_name='BugFixOg_10M_g25-loss',
-        ckpt_select_metric='loss/val'
-    ),
+    Experiment(model_name='BugFixOg_10M_g25-loss',              ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/sjuvmmo0'),
+    Experiment(model_name='BugFixOg_10M_g25-loss_last',         ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/sjuvmmo0'),
+    Experiment(model_name='BugFixOg_35M_g25-loss_best',         ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/fd3kt53a'),
+    Experiment(model_name='BugFixOg_35M_g25-loss_last',         ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/fd3kt53a'),
+    Experiment(model_name='BugFixOg_130M_g25-loss_best',        ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/yjvf7b6b'),
+    Experiment(model_name='BugFixOg_130M_g25-loss_last',        ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/yjvf7b6b'),
+    Experiment(model_name='BugFixOg_300M_g25-loss_best',        ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/ss5wbce4'),
+
+    # BugFixOg 2e-4
+    Experiment(model_name='BugFixOg_10M',                       ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/3kkjbtm3'),
+    Experiment(model_name='BugFixOg_10M_last',                  ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/3kkjbtm3'),
+    Experiment(model_name='BugFixOg_35M',                       ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/25f0n0ae'),
+    Experiment(model_name='BugFixOg_35M_last',                  ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/25f0n0ae'),
+    Experiment(model_name='BugFixOg_130M_best',                 ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/qgnnjjah'),
+    Experiment(model_name='BugFixOg_130M_last',                 ckpt_select_metric='last',      wandb_path='research/MolecularFoundationModel_Pretraining/qgnnjjah'),
+    Experiment(model_name='BugFixOg_300M_best',                 ckpt_select_metric='loss/val',  wandb_path='research/MolecularFoundationModel_Pretraining/80fizot6')
 ]
 
 # Existing data loading
@@ -204,6 +174,7 @@ y_index = tdc_df.index
 # print(tdc_df.columns)
 
 overlap = list(set(df.columns) & set(tdc_df.columns))
+print(f"{overlap=}")
 
 data = df[overlap].combine_first(tdc_df[overlap]).T
 
@@ -249,7 +220,7 @@ correlation_df_spearman.to_csv("results/spearman_correlation_analysis.csv")
 
 
 
-x_index_to_plot = ["graph_l1000_vcap/auroc/val", "graph_l1000_vcap/avpr/val"]
+x_index_to_plot = ["graph_l1000_vcap/auroc/val", "graph_l1000_vcap/avpr/val", "graph_pcqm4m_g25/mae/val"]
 
 for x in x_index_to_plot:
     task, metric, split = x.split('/')

@@ -52,15 +52,13 @@ WANDB_STATES = {
 
 # if you want to order the columns in the table, specify the order here
 MODELS = [ 
-    "11M-old-GPS++", "13M", "38M-GPS++", "11M-easy-th", 
-    "40M-MPNN-easy-th", "BackToOg_10M", "BackToOg_35M", 
-    "BackToOg_130M", "BackToOg_10M_easy-th_mup_best", 
-    "BackToOg_10M_easy-th_mup_last",
-    "BackToOg_35M_easy-th_mup_best",
-    "BackToOg_130M_easy-th_mup_best",
-    "BackToOg_300M_easy-th_mup_best",
-    "BackToOg_35M_easy-th_mup_frac-sampl",
-    "BackToOg_300M_easy-th_mup_frac-sampl"
+    'SUPER',
+    'BugFixOg_10M', 'BugFixOg_10M_last', 'BugFixOg_35M', 'BugFixOg_35M_last', 'BugFixOg_130M_best', 'BugFixOg_130M_last', 'BugFixOg_300M_best',
+    'BugFixOg_10M_1e-4', 'BugFixOg_35M_1e-4', 'BugFixOg_130M_1e-4_best', 'BugFixOg_300M_1e-4_best', 
+    'BugFixOg_10M_g25-loss', 'BugFixOg_10M_g25-loss_last', 'BugFixOg_35M_g25-loss_best', 'BugFixOg_35M_g25-loss_last', 'BugFixOg_130M_g25-loss_best', 'BugFixOg_130M_g25-loss_last', 'BugFixOg_300M_g25-loss_best',
+    'BugFixOg_5e-1-g25-loss_10M_best', 'BugFixOg_5e-1-g25-loss_10M_last', 'BugFixOg_5e-1-g25-loss_35M_best', 'BugFixOg_5e-1-g25-loss_130M_best', 'BugFixOg_5e-1-g25-loss_300M_best',
+    'BugFixOg_2e-1-g25-loss_g25do_35M_best', 'BugFixOg_2e-1-g25-loss_g25do_35M_last', 'BugFixOg_2e-1-g25-loss_g25do_130M_best', 'BugFixOg_2e-1-g25-loss_g25do_130M_last',
+    'BugFixOg_last-layernorm_10M_best', 'BugFixOg_last-layernorm_10M_last', 'BugFixOg_last-layernorm_35M_best', 'BugFixOg_last-layernorm_35M_last', 'BugFixOg_last-layernorm_130M_best', 'BugFixOg_last-layernorm_130M_last', 'BugFixOg_last-layernorm_300M_best'
 ]
 
 def find_best_score_for_sweep(sweep):
@@ -157,12 +155,16 @@ if __name__ == "__main__":
         model_name, dataset = sweep.name.split('|')
         print(f"Sweep {idx + 1} / {len(filtered_sweeps)} - {model_name} - {dataset}")
         
-        if (model_name, dataset) in results:
+        if model_name not in MODELS:
+            print(f"Model {model_name} not selected for analysis. Skipping...")
+            continue
+
+        if (model_name, dataset) in results and model_name != 'SUPER':
             print(f"Combination of ({model_name}, {dataset}) already exists in results. Skipping...")
             continue
 
         _ = sweep.load(force=True) # this is needed otherwise sweep.runs is an empty list
-        if WANDB_STATES[sweep.state.lower()] is False:
+        if WANDB_STATES[sweep.state.lower()] is False and model_name != 'SUPER':
             print(f"Sweep state - {sweep.state.lower()} - continuing to the next one")
             continue
 
