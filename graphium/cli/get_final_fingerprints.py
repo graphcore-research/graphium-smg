@@ -142,9 +142,9 @@ def get_final_fingerprints(cfg: DictConfig) -> None:
     logger.info(ModelSummary(predictor, max_depth=4))
 
     batch_size = 100
+    node_features = False
 
     # Run the model to get fingerprints
-    
     for i, index in tqdm(enumerate(range(0, len(input_features), batch_size))):
         batch = Batch.from_data_list(input_features[index:(index + batch_size)])
         model_fp32 = predictor.model.float()
@@ -158,14 +158,17 @@ def get_final_fingerprints(cfg: DictConfig) -> None:
 
         num_molecules = min(batch_size, fingerprint_graph.shape[0])
         results = []
-        for mol_idx in range(num_molecules):
-            mol_graph = batch.get_example(mol_idx)
-            start_idx = cumulative_node_counts[mol_idx]
-            end_idx = cumulative_node_counts[mol_idx + 1]
+        if node_features:
+            for mol_idx in range(num_molecules):
+                mol_graph = batch.get_example(mol_idx)
+                start_idx = cumulative_node_counts[mol_idx]
+                end_idx = cumulative_node_counts[mol_idx + 1]
 
-            mol_graph['feat'] = fingerprint_head[start_idx:end_idx]
-            result = {'graph_feat': fingerprint_graph[mol_idx], 'node_feat': mol_graph}
-            results.append(result)
+                mol_graph['feat'] = fingerprint_head[start_idx:end_idx]
+                result = {'graph_feat': fingerprint_graph[mol_idx], 'node_feat': mol_graph}
+                results.append(result)
+        else:
+            results = [fingerprint_graph[i] for i in range(num_molecules)]
 
         torch.save(results, f'results/res-{i:04}.pt')
 
