@@ -18,7 +18,10 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score, mean_absolute_error
 from scipy.stats import spearmanr
 
-SEEDS = [345374, 467039, 986009, 916060, 641316, 798438, 665204, 373079, 228395, 935414]
+SEEDS = [
+    345374, 467039, 986009, 916060, 641316, 798438, 665204, 373079, 228395, 935414,
+    151121, 151512, 917269, 291239, 948144, 562145, 977121, 112411, 585819, 817144
+]
 
 cpu_cores = os.cpu_count()
 print(f"Number of available CPU cores: {cpu_cores}")
@@ -47,6 +50,70 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, task_type, epoch, fol
     wandb.log({'epoch': epoch + fold, 'train_loss': loss})
     print(f"## Epoch {epoch+1} - Train Loss: {loss:.4f}")
     return model
+
+def ensemble_eval(models, dataloader, loss_fn, task_type, evaluation_type):
+    for model in models:
+        model.eval()
+    
+    total_loss = 0
+    all_outputs = []  # For regression, store raw outputs
+    all_probs = []    # For classification, store probabilities
+    all_targets = []
+
+    with torch.no_grad():
+        for inputs, targets in dataloader:
+            model_outputs = [model(inputs.float()) for model in models]
+            averaged_output = sum(model_outputs) / len(models)
+            loss = loss_fn(averaged_output, targets.long() if task_type == 'classification' else targets.float())
+            total_loss += loss.item()
+
+            if task_type == 'classification':
+                probs = torch.mean(torch.stack([torch.softmax(output, dim=1)[:, 1] for output in model_outputs]), dim=0)
+                all_probs.extend(probs.tolist())
+            else:
+                # Ensure outputs are always in list format
+                averaged_output = averaged_output.squeeze()
+                if averaged_output.dim() == 0:  # Check if outputs is a scalar
+                    all_outputs.append(averaged_output.item())  # Append scalar directly
+                else:
+                    all_outputs.extend(averaged_output.tolist())  # Extend list
+
+            all_targets.extend(targets.tolist())
+
+    loss = total_loss / len(dataloader)
+    metrics = {f'{evaluation_type}_loss': loss}
+
+    if task_type == 'classification':
+        # Filter out NaNs
+        clean_indices = [i for i, x in enumerate(all_probs) if not np.isnan(x)]
+        all_probs = [all_probs[i] for i in clean_indices]
+        all_targets = [all_targets[i] for i in clean_indices]
+        
+        auroc = roc_auc_score(all_targets, all_probs)
+        avpr = average_precision_score(all_targets, all_probs) # apparently same as AUPRC
+        metrics.update({
+            f'{evaluation_type}_ensemble_auroc': auroc,
+            f'{evaluation_type}_ensemble_avpr': avpr,
+        })
+    else:
+        # Filter out NaNs
+        clean_indices = [i for i, x in enumerate(all_outputs) if not np.isnan(x)]
+        all_outputs = [all_outputs[i] for i in clean_indices]
+        all_targets = [all_targets[i] for i in clean_indices]
+
+        r2 = r2_score(all_targets, all_outputs)
+        mae = mean_absolute_error(all_targets, all_outputs)
+        spearman_corr, _ = spearmanr(all_targets, all_outputs)
+        metrics.update({
+            f'{evaluation_type}_ensemble_r2': r2,
+            f'{evaluation_type}_ensemble_mae': mae,
+            f'{evaluation_type}_ensemble_spearman': spearman_corr,   
+        })
+
+    print(json.dumps(metrics, indent=5))
+    
+    return metrics
+
 
 def evaluate(model, dataloader, loss_fn, task_type, evaluation_type, epoch, fold):
     model.eval()
@@ -364,42 +431,48 @@ def main():
 
     results = {}
 
-    for seed, fold in zip(SEEDS, range(args.num_cross_validation_folds)):
-        # Construct dataloaders
-        train_dl, val_dl, _, _ = dataloader_factory("train+val", group, benchmark, i2v, args, seed=seed)    
+    repeat = 3
+    for _ in range(repeat):
+        best_models = []
+        for seed, fold in zip(SEEDS, range(args.num_cross_validation_folds)):
+            # Construct dataloaders
+            train_dl, val_dl, _, _ = dataloader_factory("train+val", group, benchmark, i2v, args, seed=seed)    
 
-        # Define a model
-        model, loss_fn, optimizer, args.trainable_params = model_factory(args)
+            # Define a model
+            model, loss_fn, optimizer, args.trainable_params = model_factory(args)
 
-        # Initialize wandb
-        run_name = f"{args.model_name}_{args.dataset}"
-        mode = 'disabled' if args.wandb_off is False else None
-        wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name, mode=mode)
-        wandb.config.update(args)
+            # Initialize wandb
+            run_name = f"{args.model_name}_{args.dataset}"
+            mode = 'disabled' if args.wandb_off is False else None
+            wandb.init(project=args.wandb_project, entity=args.wandb_entity, name=run_name, mode=mode)
+            wandb.config.update(args)
 
-        # Test random model
-        epoch = 0
-        # evaluate(model, test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch)
-        
-        best_epoch = {'val_results': None, 'model': None}
-        # Training and validation loop
-        for epoch in range(args.epochs):
-            print(f"## Fold {fold+1}/{args.num_cross_validation_folds} | Epoch {epoch+1}/{args.epochs}")
-            adjust_learning_rate(optimizer, epoch, args)
-            model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch, fold)
-            val_results = evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch, fold=fold)
+            # Test random model
+            epoch = 0
+            # ensemble_eval(model, test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch)
+            
+            best_epoch = {'val_results': None, 'model': None}
+            # Training and validation loop
+            for epoch in range(args.epochs):
+                print(f"## Fold {fold+1}/{args.num_cross_validation_folds} | Epoch {epoch+1}/{args.epochs}")
+                adjust_learning_rate(optimizer, epoch, args)
+                model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch, fold)
+                val_results = evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch, fold=fold)
 
-            # keep best model and validation loss value
-            if best_epoch['model'] is None:
-                best_epoch['model'] = deepcopy(model)
-                best_epoch['val_results'] = deepcopy(val_results)
-            else:
-                best_epoch['model'] = best_epoch['model'] if best_epoch['val_results']['val_loss'] <= val_results['val_loss'] else deepcopy(model)
-                best_epoch['val_results'] = best_epoch['val_results'] if best_epoch['val_results']['val_loss'] <= val_results['val_loss'] else deepcopy(val_results)
+                # keep best model and validation loss value
+                if best_epoch['model'] is None:
+                    best_epoch['model'] = deepcopy(model)
+                    best_epoch['val_results'] = deepcopy(val_results)
+                else:
+                    best_epoch['model'] = best_epoch['model'] if best_epoch['val_results']['val_loss'] <= val_results['val_loss'] else deepcopy(model)
+                    best_epoch['val_results'] = best_epoch['val_results'] if best_epoch['val_results']['val_loss'] <= val_results['val_loss'] else deepcopy(val_results)
+
+            best_models += [deepcopy(best_epoch['model'])]
+            results = aggregate_dicts(dicts=[results, best_epoch['val_results']])
 
         # Test trained model
-        eval_results = evaluate(best_epoch['model'], test_dl, loss_fn, args.task_type, evaluation_type='test', epoch=epoch, fold=fold)
-        results = aggregate_dicts(dicts=[results, best_epoch['val_results'], eval_results])
+        test_results = ensemble_eval(best_models, test_dl, loss_fn, args.task_type, evaluation_type='test')
+        results = aggregate_dicts(dicts=[results, test_results])
 
     print(json.dumps(results, indent=5))
     print(json.dumps(calculate_statistics(results), indent=5))
@@ -408,3 +481,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print('heya')
