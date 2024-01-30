@@ -18,28 +18,53 @@ DEFINITION_OF_BETTER = {
 }
 
 BENCHMARKS = {
-    'Caco2_Wang':                       'test_mae',
-    'Bioavailability_Ma':               'test_auroc',
-    'Lipophilicity_AstraZeneca':        'test_mae',
-    'Solubility_AqSolDB':               'test_mae',
-    'HIA_Hou':                          'test_auroc',
-    'Pgp_Broccatelli':                  'test_auroc',
-    'BBB_Martins':                      'test_auroc',
-    'PPBR_AZ':                          'test_mae',
-    'VDss_Lombardo':                    'test_spearman',
-    'CYP2C9_Veith':                     'test_avpr',
-    'CYP2D6_Veith':                     'test_avpr',
-    'CYP3A4_Veith':                     'test_avpr',
-    'CYP2C9_Substrate_CarbonMangels':   'test_avpr',
-    'CYP2D6_Substrate_CarbonMangels':   'test_auroc',
-    'CYP3A4_Substrate_CarbonMangels':   'test_avpr',
-    'Half_Life_Obach':                  'test_spearman',
-    'Clearance_Hepatocyte_AZ':          'test_spearman',
-    'Clearance_Microsome_AZ':           'test_spearman',
-    'LD50_Zhu':                         'test_mae',
-    'hERG':                             'test_auroc',
-    'AMES':                             'test_auroc',
-    'DILI':                             'test_auroc'
+    'Caco2_Wang':                       'val_mae',
+    'Bioavailability_Ma':               'val_auroc',
+    'Lipophilicity_AstraZeneca':        'val_mae',
+    'Solubility_AqSolDB':               'val_mae',
+    'HIA_Hou':                          'val_auroc',
+    'Pgp_Broccatelli':                  'val_auroc',
+    'BBB_Martins':                      'val_auroc',
+    'PPBR_AZ':                          'val_mae',
+    'VDss_Lombardo':                    'val_spearman',
+    'CYP2C9_Veith':                     'val_avpr',
+    'CYP2D6_Veith':                     'val_avpr',
+    'CYP3A4_Veith':                     'val_avpr',
+    'CYP2C9_Substrate_CarbonMangels':   'val_avpr',
+    'CYP2D6_Substrate_CarbonMangels':   'val_avpr',
+    'CYP3A4_Substrate_CarbonMangels':   'val_auroc',
+    'Half_Life_Obach':                  'val_spearman',
+    'Clearance_Hepatocyte_AZ':          'val_spearman',
+    'Clearance_Microsome_AZ':           'val_spearman',
+    'LD50_Zhu':                         'val_mae',
+    'hERG':                             'val_auroc',
+    'AMES':                             'val_auroc',
+    'DILI':                             'val_auroc'
+}
+
+TEST_BENCHMARKS = {
+    'Caco2_Wang':                       'test_ensemble_mae',
+    'Bioavailability_Ma':               'test_ensemble_auroc',
+    'Lipophilicity_AstraZeneca':        'test_ensemble_mae',
+    'Solubility_AqSolDB':               'test_ensemble_mae',
+    'HIA_Hou':                          'test_ensemble_auroc',
+    'Pgp_Broccatelli':                  'test_ensemble_auroc',
+    'BBB_Martins':                      'test_ensemble_auroc',
+    'PPBR_AZ':                          'test_ensemble_mae',
+    'VDss_Lombardo':                    'test_ensemble_spearman',
+    'CYP2C9_Veith':                     'test_ensemble_avpr',
+    'CYP2D6_Veith':                     'test_ensemble_avpr',
+    'CYP3A4_Veith':                     'test_ensemble_avpr',
+    'CYP2C9_Substrate_CarbonMangels':   'test_ensemble_avpr',
+    'CYP2D6_Substrate_CarbonMangels':   'test_ensemble_avpr',
+    'CYP3A4_Substrate_CarbonMangels':   'test_ensemble_auroc',
+    'Half_Life_Obach':                  'test_ensemble_spearman',
+    'Clearance_Hepatocyte_AZ':          'test_ensemble_spearman',
+    'Clearance_Microsome_AZ':           'test_ensemble_spearman',
+    'LD50_Zhu':                         'test_ensemble_mae',
+    'hERG':                             'test_ensemble_auroc',
+    'AMES':                             'test_ensemble_auroc',
+    'DILI':                             'test_ensemble_auroc'
 }
 
 WANDB_STATES = {
@@ -52,14 +77,17 @@ WANDB_STATES = {
 
 # if you want to order the columns in the table, specify the order here
 MODELS = [ 
-    'SUPER',
-    'BugFixOg_10M', 'BugFixOg_10M_last', 'BugFixOg_35M', 'BugFixOg_35M_last', 'BugFixOg_130M_best', 'BugFixOg_130M_last', 'BugFixOg_300M_best',
-    'BugFixOg_10M_1e-4', 'BugFixOg_35M_1e-4', 'BugFixOg_130M_1e-4_best', 'BugFixOg_300M_1e-4_best', 
-    'BugFixOg_10M_g25-loss', 'BugFixOg_10M_g25-loss_last', 'BugFixOg_35M_g25-loss_best', 'BugFixOg_35M_g25-loss_last', 'BugFixOg_130M_g25-loss_best', 'BugFixOg_130M_g25-loss_last', 'BugFixOg_300M_g25-loss_best',
-    'BugFixOg_5e-1-g25-loss_10M_best', 'BugFixOg_5e-1-g25-loss_10M_last', 'BugFixOg_5e-1-g25-loss_35M_best', 'BugFixOg_5e-1-g25-loss_130M_best', 'BugFixOg_5e-1-g25-loss_300M_best',
-    'BugFixOg_2e-1-g25-loss_g25do_35M_best', 'BugFixOg_2e-1-g25-loss_g25do_35M_last', 'BugFixOg_2e-1-g25-loss_g25do_130M_best', 'BugFixOg_2e-1-g25-loss_g25do_130M_last',
-    'BugFixOg_last-layernorm_10M_best', 'BugFixOg_last-layernorm_10M_last', 'BugFixOg_last-layernorm_35M_best', 'BugFixOg_last-layernorm_35M_last', 'BugFixOg_last-layernorm_130M_best', 'BugFixOg_last-layernorm_130M_last', 'BugFixOg_last-layernorm_300M_best'
+    # 'SUPER',
+    'ENSEMBLE_GINE_10M', 'ENSEMBLE_GCN_10M', 'ENSEMBLE_10M'
 ]
+
+def dict_to_bash_command(cmd_dict, script_name="ensemble_eval.py"):
+    # Convert each key-value pair in the dictionary to a command line argument
+    ignore_list = ['input_dim', 'task_type', 'num_classes', 'wandb_off', 'cpu_slice', 'trainable_params']
+    args = [f"--{key.replace('_', '-')}={value}" for key, value in cmd_dict.items() if key not in ignore_list]
+    
+    # Join all arguments into a single string, prefixed with the script name
+    return f"python {script_name} " + " ".join(args)
 
 def find_best_score_for_sweep(sweep):
     mean_test_scores, std_test_scores, run_indices = [], [], []
@@ -71,7 +99,7 @@ def find_best_score_for_sweep(sweep):
             continue # skip if crashed or unfinished
         
         if metric is None or def_of_better is None: # dataset cant be extracted from a sweep so get it from a run
-            metric = BENCHMARKS[run.config['dataset']]
+            metric, test_metric = BENCHMARKS[run.config['dataset']], TEST_BENCHMARKS[run.config['dataset']]
             def_of_better = DEFINITION_OF_BETTER[metric.split('_')[-1]]
 
         if "statistics" in run.summary_metrics.keys():
@@ -79,6 +107,7 @@ def find_best_score_for_sweep(sweep):
             if f"{metric}" in run_statistics.keys():
                 mean_test_scores += [run_statistics[metric]['mean']]
                 std_test_scores += [run_statistics[metric]['std']]
+                run_indices += [idx]
 
     # use appropriate reduction for the metric to get the best score in the sweep
     best_mean_test_score = def_of_better(mean_test_scores) if len(mean_test_scores) else 'NaN'
@@ -86,7 +115,8 @@ def find_best_score_for_sweep(sweep):
     # Get the index of best_mean_test_score to find the std_test_score
     if best_mean_test_score != 'NaN':
         index_of_best_score = mean_test_scores.index(best_mean_test_score)
-        best_std_test_score = std_test_scores[index_of_best_score]
+        best_mean_test_score = sweep.runs[index_of_best_score].summary_metrics['statistics'][test_metric]['mean']
+        best_std_test_score = sweep.runs[index_of_best_score].summary_metrics['statistics'][test_metric]['std']
     else:
         best_std_test_score = 'NaN'
         
@@ -147,10 +177,13 @@ if __name__ == "__main__":
     project = api.project(name=project_name, entity=entity_name)
 
     results = load_results(pickle_path)
+    # results = {}
+
     sweeps = project.sweeps()
 
     # filter
     filtered_sweeps = [sweep for sweep in sweeps if "|" in sweep.name]
+
     for idx, sweep in enumerate(filtered_sweeps):
         model_name, dataset = sweep.name.split('|')
         print(f"Sweep {idx + 1} / {len(filtered_sweeps)} - {model_name} - {dataset}")
@@ -159,12 +192,12 @@ if __name__ == "__main__":
             print(f"Model {model_name} not selected for analysis. Skipping...")
             continue
 
-        if (model_name, dataset) in results and model_name != 'SUPER':
+        if (model_name, dataset) in results:
             print(f"Combination of ({model_name}, {dataset}) already exists in results. Skipping...")
             continue
 
         _ = sweep.load(force=True) # this is needed otherwise sweep.runs is an empty list
-        if WANDB_STATES[sweep.state.lower()] is False and model_name != 'SUPER':
+        if WANDB_STATES[sweep.state.lower()] is False:
             print(f"Sweep state - {sweep.state.lower()} - continuing to the next one")
             continue
 
