@@ -36,7 +36,7 @@ class DatasetSubSampler(data_utils.Sampler):
         else:
             for i in range(len(dataset)):
                 # the dataset[i]["labels"].keys() are not deterministic, need to sort by key length
-                task_name = sorted(dataset[i]["labels"].keys(), key=len)[-1]
+                task_name = sorted(dataset[i]["labels"].keys, key=len)[-1]
                 if task_name not in self.task_indices:
                     self.task_indices[task_name] = []
                 self.task_indices[task_name].append(i)

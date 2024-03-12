@@ -306,6 +306,30 @@ class PredictorModule(lightning.LightningModule):
             task: wrapped(preds=preds[task], target=targets[task])
             for task, wrapped in wrapped_loss_fun_dict.items()
         }
+       
+        # 10M submission: g25 / 5
+        if "graph_pcqm4m_g25" in all_task_losses.keys():
+            all_task_losses["graph_pcqm4m_g25"] = all_task_losses["graph_pcqm4m_g25"] / 5
+        
+        # run 1 
+        #all_task_losses["graph_pcqm4m_g25"] = all_task_losses["graph_pcqm4m_g25"] / 10
+        #all_task_losses["node_pcqm4m_n4"] = all_task_losses["node_pcqm4m_n4"] / 10
+
+        #run2
+        #all_task_losses["graph_pcqm4m_g25"] = all_task_losses["graph_pcqm4m_g25"] / 10
+        #all_task_losses["node_pcqm4m_n4"] = all_task_losses["node_pcqm4m_n4"] / 5
+
+        #run3
+        #all_task_losses["graph_pcqm4m_g25"] = all_task_losses["graph_pcqm4m_g25"] / 10
+        #all_task_losses["graph_pcba_1328"] = all_task_losses["graph_pcba_1328"] / 5
+
+        #run4
+        #all_task_losses["graph_pcqm4m_g25"] = all_task_losses["graph_pcqm4m_g25"] / 20
+        #all_task_losses["node_pcqm4m_n4"] = all_task_losses["node_pcqm4m_n4"] / 20
+
+#        all_task_losses["graph_l1000_mcf7"] = all_task_losses["graph_l1000_mcf7"] / 4
+#        all_task_losses["graph_l1000_vcap"] = all_task_losses["graph_l1000_vcap"] / 2
+
         total_loss = torch.sum(torch.stack(list(all_task_losses.values())), dim=0)
         num_tasks = len(all_task_losses.keys())
         weighted_loss = total_loss / num_tasks

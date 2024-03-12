@@ -939,6 +939,7 @@ class MultitaskFromSmilesDataModule(BaseDataModule, IPUDataModuleModifier):
                 f"`prepare_dict_or_graph` should be either 'pyg:dict' or 'pyg:graph', Provided: `{prepare_dict_or_graph}`"
             )
         self.data_hash = self.get_data_hash()
+        logger.info(f"HAAAAAAASH: , {self.data_hash}")
 
         if self.processed_graph_data_path is not None:
             if self._ready_to_load_all_from_file():
