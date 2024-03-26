@@ -188,7 +188,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 pearson_p_value_threshold = 0.05
-spearman_p_value_threshold = 0.2
+spearman_p_value_threshold = 0.1
 correlation_df_pearson = pd.DataFrame(index=y_index, columns=x_index)
 correlation_df_spearman = pd.DataFrame(index=y_index, columns=x_index)
 

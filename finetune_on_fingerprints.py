@@ -325,7 +325,7 @@ def adjust_learning_rate(optimizer, epoch, args):
 
     current_lr = optimizer.param_groups[0]['lr']
     wandb.log({'epoch': epoch, 'lr_at_epoch': current_lr})
-
+    return optimizer
 
 
 
@@ -455,7 +455,7 @@ def main():
             # Training and validation loop
             for epoch in range(args.epochs):
                 print(f"## Fold {fold+1}/{args.num_cross_validation_folds} | Epoch {epoch+1}/{args.epochs}")
-                adjust_learning_rate(optimizer, epoch, args)
+                optimizer = adjust_learning_rate(optimizer, epoch, args)
                 model = train_one_epoch(model, train_dl, loss_fn, optimizer, args.task_type, epoch, fold)
                 val_results = evaluate(model, val_dl, loss_fn, args.task_type, evaluation_type='val', epoch=epoch, fold=fold)
 
@@ -481,4 +481,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print('heya')

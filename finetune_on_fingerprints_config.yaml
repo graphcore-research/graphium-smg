@@ -16,14 +16,14 @@ parameters:
   combine-input:
     values:
       - concat
-      - none
+      # - none
   depth:
     values:
       - 3
       - 4
   dropout-rate:
     values:
-      - 0
+      # - 0
       - 0.1
   hidden-dim:
     values:
@@ -39,10 +39,10 @@ parameters:
       # - 0.00005
   warmup-epochs:
     values:
-      - 0
+      # - 0
       - 5
   lr-schedule:
     values:
-      - constant
-      - linear
+      # - constant
+      # - linear
       - cosine

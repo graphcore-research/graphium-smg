@@ -78,7 +78,8 @@ WANDB_STATES = {
 # if you want to order the columns in the table, specify the order here
 MODELS = [ 
     # 'SUPER',
-    'ENSEMBLE_GINE_10M', 'ENSEMBLE_GCN_10M', 'ENSEMBLE_10M'
+    'ENSEMBLE_GINE_large-sweep_10M',
+    # 'ENSEMBLE_GINE_10M', 'ENSEMBLE_GCN_10M', 'ENSEMBLE_10M'
 ]
 
 def dict_to_bash_command(cmd_dict, script_name="ensemble_eval.py"):
@@ -90,7 +91,7 @@ def dict_to_bash_command(cmd_dict, script_name="ensemble_eval.py"):
     return f"python {script_name} " + " ".join(args)
 
 def find_best_score_for_sweep(sweep):
-    mean_test_scores, std_test_scores, run_indices = [], [], []
+    mean_val_scores, std_test_scores, run_indices = [], [], []
     metric, def_of_better = None, None
     
     for idx, run in enumerate(sweep.runs):
@@ -105,16 +106,16 @@ def find_best_score_for_sweep(sweep):
         if "statistics" in run.summary_metrics.keys():
             run_statistics = run.summary_metrics['statistics']
             if f"{metric}" in run_statistics.keys():
-                mean_test_scores += [run_statistics[metric]['mean']]
+                mean_val_scores += [run_statistics[metric]['mean']]
                 std_test_scores += [run_statistics[metric]['std']]
                 run_indices += [idx]
 
     # use appropriate reduction for the metric to get the best score in the sweep
-    best_mean_test_score = def_of_better(mean_test_scores) if len(mean_test_scores) else 'NaN'
+    best_mean_test_score = def_of_better(mean_val_scores) if len(mean_val_scores) else 'NaN'
 
     # Get the index of best_mean_test_score to find the std_test_score
     if best_mean_test_score != 'NaN':
-        index_of_best_score = mean_test_scores.index(best_mean_test_score)
+        index_of_best_score = mean_val_scores.index(best_mean_test_score)
         best_mean_test_score = sweep.runs[index_of_best_score].summary_metrics['statistics'][test_metric]['mean']
         best_std_test_score = sweep.runs[index_of_best_score].summary_metrics['statistics'][test_metric]['std']
     else:
@@ -176,8 +177,8 @@ if __name__ == "__main__":
 
     project = api.project(name=project_name, entity=entity_name)
 
-    results = load_results(pickle_path)
-    # results = {}
+    # results = load_results(pickle_path)
+    results = {}
 
     sweeps = project.sweeps()
 
@@ -197,7 +198,7 @@ if __name__ == "__main__":
             continue
 
         _ = sweep.load(force=True) # this is needed otherwise sweep.runs is an empty list
-        if WANDB_STATES[sweep.state.lower()] is False:
+        if WANDB_STATES[sweep.state.lower()] is False and model_name != 'ENSEMBLE_GINE_large-sweep_10M':
             print(f"Sweep state - {sweep.state.lower()} - continuing to the next one")
             continue
 
@@ -205,5 +206,5 @@ if __name__ == "__main__":
         results[(model_name, dataset)] = {"mean": mean_score, "std": std_score}
         print(f"{mean_score=}, {std_score=}")
 
-    save_results(results, pickle_path)
+    # save_results(results, pickle_path)
     save_to_csv(results, csv_path)
