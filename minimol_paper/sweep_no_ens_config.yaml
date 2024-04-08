@@ -1,0 +1,48 @@
+command:
+  - python
+  - single_model_finetuning.py
+  - --model-name=${envvar:SWEEP_MODEL_NAME}
+  - --dataset=${envvar:SWEEP_DATASET}
+  - --fingerprints-path=${envvar:SWEEP_FINGERPRINTS_PATH}
+  - --num-cross-validation-folds=${envvar:SWEEP_CROSS_VALIDATION_FOLDS}
+  - --epochs=25
+  - ${args}
+entity: graphcore
+method: grid
+metric:
+  goal: minimize
+  name: statistics.test_loss.mean
+parameters:
+  combine-input:
+    values:
+      - concat
+      # - none
+  depth:
+    values:
+      - 3
+      - 4
+  dropout-rate:
+    values:
+      # - 0
+      - 0.1
+  hidden-dim:
+    values:
+      - 512
+      - 1024
+      - 2048
+  lr:
+    values:
+      # - 0.00100
+      - 0.00050
+      - 0.00030
+      - 0.00010
+      # - 0.00005
+  warmup-epochs:
+    values:
+      # - 0
+      - 5
+  lr-schedule:
+    values:
+      # - constant
+      # - linear
+      - cosine
